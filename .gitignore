@@ -1,0 +1,17 @@
+# Credentials and local configuration
+.env
+*.env
+config.local.*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Generated data (rebuilt by generator/generate_data.py)
+data/generated/
+
+# Power BI: commit the PBIP project, not binaries or caches
+*.pbix
+**/.pbi/localSettings.json
+**/.pbi/cache.abf
