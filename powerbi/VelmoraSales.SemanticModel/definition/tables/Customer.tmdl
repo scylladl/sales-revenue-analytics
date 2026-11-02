@@ -1,0 +1,76 @@
+/// Customers: HoReCa accounts, retail stores (one customer per store) and consumers.
+table Customer
+	lineageTag: 37b44939-9982-5050-97b9-9336994a3bf2
+
+	column 'Customer Key'
+		dataType: int64
+		isHidden
+		lineageTag: af8600ba-b143-563d-b25c-0f2c727af7d1
+		summarizeBy: none
+		sourceColumn: CustomerKey
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Customer Id'
+		dataType: string
+		lineageTag: 8db00655-83c8-5321-a193-91e9a35c569d
+		summarizeBy: none
+		sourceColumn: CustomerId
+
+		annotation SummarizationSetBy = Explicit
+
+	column Customer
+		dataType: string
+		lineageTag: 36f77a8e-0646-56e6-9ccb-ed5ba957f4f1
+		summarizeBy: none
+		sourceColumn: CustomerName
+
+		annotation SummarizationSetBy = Explicit
+
+	/// HoReCa tier (Gold, Silver, Bronze), retail Chain or Gourmet, e-commerce Consumer.
+	column Segment
+		dataType: string
+		lineageTag: 694caeee-6232-5ef8-ba7a-0f930de49d5c
+		summarizeBy: none
+		sourceColumn: Segment
+
+		annotation SummarizationSetBy = Explicit
+
+	column City
+		dataType: string
+		lineageTag: 0475f9c3-9939-5132-89ff-22aac70dc184
+		summarizeBy: none
+		sourceColumn: City
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Created Date'
+		dataType: dateTime
+		formatString: dd mmm yyyy
+		lineageTag: ca972952-90ad-5baf-9e09-d04a2ada1cdc
+		summarizeBy: none
+		sourceColumn: CreatedDate
+
+		annotation SummarizationSetBy = Explicit
+
+	/// Same channel, name and city as another customer id (check SRC-01); kept separate until the sales team decides.
+	column 'Is Possible Duplicate'
+		dataType: boolean
+		lineageTag: ea456c4d-3329-571e-ad7e-7ae919fb5583
+		summarizeBy: none
+		sourceColumn: IsPossibleDuplicate
+
+		annotation SummarizationSetBy = Explicit
+
+	partition Customer = m
+		mode: import
+		queryGroup: Dimensions
+		source =
+				let
+				    Source = Sql.Database ( Server, Database ),
+				    Data = Source{[Schema = "rpt", Item = "vw_Customer"]}[Data],
+				    Typed = Table.TransformColumnTypes ( Data, {{"CustomerKey", Int64.Type}} )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

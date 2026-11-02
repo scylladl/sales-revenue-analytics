@@ -7,7 +7,7 @@ Version 1.0, approved 2026-11-01 by the Chief Financial Officer (fictional spons
 ## 1. The company
 
 Velmora Coffee Roasters is a specialty coffee roaster based in Valencia, Spain: about 95 employees and around
-€20 million of net revenue a year. It sells about 140 products (whole beans, ground coffee, compatible capsules,
+€20 million of net revenue a year. It sells about 95 products (whole beans, ground coffee, compatible capsules,
 gift packs, accessories and equipment such as grinders and espresso machines) through three channels:
 
 | Channel | Customers | How it works |

@@ -1,0 +1,83 @@
+/// Result of dq.usp_RunChecks after the last load.
+table 'Data Quality Check'
+	lineageTag: dd233916-7d1b-5040-a130-b3d06b009c40
+
+	column 'Check Code'
+		dataType: string
+		lineageTag: 8f669d05-3c89-5ac7-82fe-67a88e5ccdbd
+		summarizeBy: none
+		sourceColumn: CheckCode
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Check Type'
+		dataType: string
+		lineageTag: 92005a73-27da-59bc-8a8e-1edc28147aa2
+		summarizeBy: none
+		sourceColumn: CheckType
+
+		annotation SummarizationSetBy = Explicit
+
+	column Check
+		dataType: string
+		lineageTag: 5fa720f0-e2c8-50ab-8bab-7303f113a563
+		summarizeBy: none
+		sourceColumn: CheckName
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Affected Rows'
+		dataType: int64
+		formatString: #,##0
+		lineageTag: 7fd144f0-09e8-5ae2-9d4a-8f8362371b4d
+		summarizeBy: none
+		sourceColumn: AffectedRows
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Unhandled Rows'
+		dataType: int64
+		formatString: #,##0
+		lineageTag: dd1829bc-188e-5bfa-845e-e1d3cbaec3d8
+		summarizeBy: none
+		sourceColumn: UnhandledRows
+
+		annotation SummarizationSetBy = Explicit
+
+	column Handling
+		dataType: string
+		lineageTag: ab34be54-d186-5fcf-a0e1-6a81a5b95a48
+		summarizeBy: none
+		sourceColumn: Handling
+
+		annotation SummarizationSetBy = Explicit
+
+	column Result
+		dataType: string
+		lineageTag: 3f5d8065-51d7-5f44-98fe-f096fd2ef420
+		summarizeBy: none
+		sourceColumn: Result
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Run At'
+		dataType: dateTime
+		formatString: dd mmm yyyy hh:nn
+		lineageTag: a8cc5d8b-7f4a-5f2b-a580-797721fce418
+		summarizeBy: none
+		sourceColumn: RunAt
+
+		annotation SummarizationSetBy = Explicit
+
+	partition 'Data Quality Check' = m
+		mode: import
+		queryGroup: Support
+		source =
+				let
+				    Source = Sql.Database ( Server, Database ),
+				    Data = Source{[Schema = "rpt", Item = "vw_DataQualityCheck"]}[Data],
+				    Typed = Table.TransformColumnTypes ( Data, {{"AffectedRows", Int64.Type}, {"UnhandledRows", Int64.Type}} )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

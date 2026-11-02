@@ -1,0 +1,92 @@
+/// Monthly budget by channel, region and category, from the finance workbook (rule R7). Title rows and the workbook Total row are skipped; region codes are upper-cased and category names mapped to codes.
+table Budget
+	lineageTag: 7ab8acde-f32f-5f84-8b16-9dc5ec3f2de9
+
+	column 'Month Start'
+		dataType: dateTime
+		isHidden
+		formatString: dd mmm yyyy
+		lineageTag: 57ea9785-de6d-5749-8b42-f666e8ec229f
+		summarizeBy: none
+		sourceColumn: MonthStart
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Channel Code'
+		dataType: string
+		isHidden
+		lineageTag: 4eaf79fe-a7fd-501e-97f1-5a7de26e31a1
+		summarizeBy: none
+		sourceColumn: ChannelCode
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Region Code'
+		dataType: string
+		isHidden
+		lineageTag: e225abdb-e8cb-5dc1-beea-3eabee8303f6
+		summarizeBy: none
+		sourceColumn: RegionCode
+
+		annotation SummarizationSetBy = Explicit
+
+	/// Category name as written in the workbook.
+	column 'Sheet Category'
+		dataType: string
+		lineageTag: 593340eb-3703-5260-ba0b-52b27ed1e45b
+		summarizeBy: none
+		sourceColumn: SheetCategory
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Category Code'
+		dataType: string
+		isHidden
+		lineageTag: be1d705f-0ac7-5271-b3d9-87ea9ecdf13b
+		summarizeBy: none
+		sourceColumn: CategoryCode
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Net Revenue'
+		dataType: decimal
+		isHidden
+		formatString: #,##0.00
+		lineageTag: 43b22e16-15a7-59c6-b98b-aefa68d00e33
+		summarizeBy: none
+		sourceColumn: NetRevenue
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Gross Profit'
+		dataType: decimal
+		isHidden
+		formatString: #,##0.00
+		lineageTag: 653b7e43-098e-56e9-a568-6103a605a0ed
+		summarizeBy: none
+		sourceColumn: GrossProfit
+
+		annotation SummarizationSetBy = Explicit
+
+	partition Budget = m
+		mode: import
+		queryGroup: Facts
+		source =
+				let
+				    Rows = Table.SelectRows ( #"Budget Sheets", each [Channel] <> "Total" ),
+				    Cleaned = Table.TransformColumns ( Rows, {{"Channel", each Text.Upper ( Text.Trim ( _ ) ), type text}, {"Region", each Text.Upper ( Text.Trim ( _ ) ), type text}, {"Category", Text.Trim, type text}} ),
+				    // category names as finance writes them, including misspellings seen in past workbooks; an unknown name stays
+				    // unmapped and is counted by the Unmapped Budget Rows measure
+				    CategoryMap = #table ( type table [Category = text, CategoryCode = text], {
+				        {"Whole Beans", "BEANS"}, {"Ground Coffee", "GROUND"}, {"Capsules", "CAPS"}, {"Capsule", "CAPS"},
+				        {"Gift Packs", "GIFT"}, {"Accessories", "ACCS"}, {"Accesories", "ACCS"}, {"Equipment", "EQUIP"} } ),
+				    Joined = Table.NestedJoin ( Cleaned, {"Category"}, CategoryMap, {"Category"}, "Map", JoinKind.LeftOuter ),
+				    Coded = Table.ExpandTableColumn ( Joined, "Map", {"CategoryCode"} ),
+				    Kept = Table.SelectColumns ( Coded, {"MonthStart", "Channel", "Region", "Category", "CategoryCode", "Measure", "Amount"} ),
+				    Pivoted = Table.Pivot ( Kept, {"Net revenue", "Gross profit"}, "Measure", "Amount", List.Sum ),
+				    Renamed = Table.RenameColumns ( Pivoted, {{"Channel", "ChannelCode"}, {"Region", "RegionCode"}, {"Category", "SheetCategory"}, {"Net revenue", "NetRevenue"}, {"Gross profit", "GrossProfit"}} ),
+				    Typed = Table.TransformColumnTypes ( Renamed, {{"CategoryCode", type text}, {"NetRevenue", Currency.Type}, {"GrossProfit", Currency.Type}} )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

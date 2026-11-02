@@ -1,0 +1,43 @@
+/// Sales channel: HoReCa, Retail, E-commerce.
+table Channel
+	lineageTag: 3f4b5349-c7de-58bc-a8bd-c755c5cfe9d1
+
+	column 'Channel Code'
+		dataType: string
+		isHidden
+		lineageTag: c8d4105f-f40e-52ee-9416-c8a30cb3c487
+		summarizeBy: none
+		sourceColumn: ChannelCode
+
+		annotation SummarizationSetBy = Explicit
+
+	column Channel
+		dataType: string
+		lineageTag: b5bee963-429e-589c-ad2d-dfa32db8abc8
+		summarizeBy: none
+		sourceColumn: ChannelName
+		sortByColumn: 'Channel Sort'
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Channel Sort'
+		dataType: int64
+		isHidden
+		lineageTag: 3170c986-96c9-53e5-b72b-3b4bac25ed08
+		summarizeBy: none
+		sourceColumn: SortOrder
+
+		annotation SummarizationSetBy = Explicit
+
+	partition Channel = m
+		mode: import
+		queryGroup: Dimensions
+		source =
+				let
+				    Source = Sql.Database ( Server, Database ),
+				    Data = Source{[Schema = "rpt", Item = "vw_Channel"]}[Data],
+				    Typed = Table.TransformColumnTypes ( Data, {{"SortOrder", Int64.Type}} )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

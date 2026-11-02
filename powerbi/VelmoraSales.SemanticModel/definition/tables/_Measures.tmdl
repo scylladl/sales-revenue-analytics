@@ -1,0 +1,333 @@
+/// Home of all report measures. KPI definitions: docs/04-kpi-dictionary.md.
+table _Measures
+	lineageTag: e24d73e8-dbd9-5217-b1f8-6aedbb4b0c51
+
+	/// Quantity times list price on invoice lines, before discounts (R2). Invoice date.
+	measure 'Gross Sales' = SUM ( 'Sales'[Gross Sales] )
+		formatString: € #,##0
+		displayFolder: 1. Sales
+		lineageTag: 266c5e9f-59b5-5840-9915-ce4a623a56a9
+
+	/// Line discounts, contract plus promotion, applied once (R2). Invoice date.
+	measure Discounts = SUM ( 'Sales'[Discount Amount] )
+		formatString: € #,##0
+		displayFolder: 1. Sales
+		lineageTag: 8eb93f43-e27a-533e-8e4f-4a33427b2df8
+
+	/// Gross sales minus discounts.
+	measure 'Net Sales Before Returns' = [Gross Sales] - [Discounts]
+		formatString: € #,##0
+		displayFolder: 1. Sales
+		lineageTag: 9ad6897a-6288-5f4e-9247-ed6b020c9434
+
+	/// Net value of credit note lines, in the month of the credit note (R4).
+	measure Returns = SUM ( 'Sales'[Return Amount] )
+		formatString: € #,##0
+		displayFolder: 1. Sales
+		lineageTag: 43170abe-470e-5ae9-a988-1d3dd9e9b617
+
+	/// Gross sales minus discounts minus returns, excluding VAT (R2). Invoice and credit note dates.
+	measure 'Net Revenue' = SUM ( 'Sales'[Net Revenue] )
+		formatString: € #,##0
+		displayFolder: 1. Sales
+		lineageTag: fd976011-5e51-5c86-83d9-688f0b6f5138
+
+	/// Units on invoice lines.
+	measure 'Units Sold' = CALCULATE ( SUM ( 'Sales'[Quantity] ), KEEPFILTERS ( 'Sales'[Line Type] = "Invoice" ) )
+		formatString: #,##0
+		displayFolder: 1. Sales
+		lineageTag: 6c8c1446-bdee-5db4-be4d-64b7e338f96e
+
+	/// Orders with an invoice in the period.
+	measure 'Invoiced Orders' = CALCULATE ( DISTINCTCOUNT ( 'Sales'[Order Id] ), KEEPFILTERS ( 'Sales'[Line Type] = "Invoice" ) )
+		formatString: #,##0
+		displayFolder: 1. Sales
+		lineageTag: c2f34e42-4f6c-599c-9ff0-7b8a590461eb
+
+	/// Net revenue divided by invoiced orders (R8). Blank unless a single channel is in context: business and consumer orders are never averaged together.
+	measure 'Average Order Value' =
+			VAR Channels = CALCULATE ( DISTINCTCOUNT ( 'Sales'[Channel Code] ), KEEPFILTERS ( 'Sales'[Line Type] = "Invoice" ) )
+			RETURN
+			    IF ( Channels = 1, DIVIDE ( [Net Revenue], [Invoiced Orders] ) )
+		formatString: € #,##0.00
+		displayFolder: 1. Sales
+		lineageTag: a294acb8-cda2-5d9e-a565-1f2db38c814d
+
+	/// Discounts divided by gross sales.
+	measure 'Discount Rate %' = DIVIDE ( [Discounts], [Gross Sales] )
+		formatString: 0.0%
+		displayFolder: 1. Sales
+		lineageTag: 7d160b88-dead-54a9-baaf-272b5887ddeb
+
+	/// Returns of the sales invoiced in the period divided by their net sales before returns: each return is attributed to its original sale (R4).
+	measure 'Return Rate %' = DIVIDE ( CALCULATE ( [Returns], USERELATIONSHIP ( 'Sales'[Original Invoice Date], 'Date'[Date] ) ), [Net Sales Before Returns] )
+		formatString: 0.0%
+		displayFolder: 1. Sales
+		lineageTag: bbcf2746-37d1-5022-813b-2d7c920587c4
+
+	/// Standard cost of the invoice month times units (R5). Returned equipment and accessories reverse their cost; returned coffee is written off.
+	measure COGS = SUM ( 'Sales'[COGS] )
+		formatString: € #,##0
+		displayFolder: 2. Profitability
+		lineageTag: 3164d932-86c7-5818-a60d-ea88ea398941
+
+	/// Net revenue minus COGS (R6).
+	measure 'Gross Profit' = [Net Revenue] - [COGS]
+		formatString: € #,##0
+		displayFolder: 2. Profitability
+		lineageTag: 97e0f1f9-2071-5fce-b7d9-1e9730cdcf6c
+
+	/// Gross profit divided by net revenue (R6).
+	measure 'Gross Margin %' = DIVIDE ( [Gross Profit], [Net Revenue] )
+		formatString: 0.0%
+		displayFolder: 2. Profitability
+		lineageTag: 06d12c17-4e70-59ff-a06f-a748ed942370
+
+	/// Budgeted net revenue (R7). Blank when customers, products or sales attributes are filtered: the budget only exists by month, channel, region and category.
+	measure 'Budget Net Revenue' =
+			VAR OutsideBudgetGrain =
+			    ISCROSSFILTERED ( 'Customer' ) || ISCROSSFILTERED ( 'Product' ) || ISFILTERED ( 'Sales' ) || ISFILTERED ( 'Order Line' )
+			RETURN
+			    IF ( NOT OutsideBudgetGrain, SUM ( 'Budget'[Net Revenue] ) )
+		formatString: € #,##0
+		displayFolder: 3. Budget
+		lineageTag: d702c7c0-ad1f-5df0-858e-6ad540034e55
+
+	/// Budgeted gross profit (R7), with the same grain rule as Budget Net Revenue.
+	measure 'Budget Gross Profit' =
+			VAR OutsideBudgetGrain =
+			    ISCROSSFILTERED ( 'Customer' ) || ISCROSSFILTERED ( 'Product' ) || ISFILTERED ( 'Sales' ) || ISFILTERED ( 'Order Line' )
+			RETURN
+			    IF ( NOT OutsideBudgetGrain, SUM ( 'Budget'[Gross Profit] ) )
+		formatString: € #,##0
+		displayFolder: 3. Budget
+		lineageTag: 227a41aa-ace9-514e-888f-373557f51bf7
+
+	/// Budgeted gross profit divided by budgeted net revenue.
+	measure 'Budget Gross Margin %' = DIVIDE ( [Budget Gross Profit], [Budget Net Revenue] )
+		formatString: 0.0%
+		displayFolder: 3. Budget
+		lineageTag: d7efd597-6bc3-5d6a-9945-845060be53c4
+
+	/// Net revenue minus budgeted net revenue.
+	measure 'Net Revenue vs Budget' = IF ( NOT ISBLANK ( [Budget Net Revenue] ), [Net Revenue] - [Budget Net Revenue] )
+		formatString: +€ #,##0;-€ #,##0;€ 0
+		displayFolder: 3. Budget
+		lineageTag: 43669a68-f27c-5467-9ae2-17a5dd9346b7
+
+	/// Net revenue divided by budgeted net revenue.
+	measure 'Net Revenue Attainment %' = DIVIDE ( [Net Revenue], [Budget Net Revenue] )
+		formatString: 0.0%
+		displayFolder: 3. Budget
+		lineageTag: ce5632bb-61a6-5dca-aeae-db2b04479200
+
+	/// Gross profit minus budgeted gross profit.
+	measure 'Gross Profit vs Budget' = IF ( NOT ISBLANK ( [Budget Gross Profit] ), [Gross Profit] - [Budget Gross Profit] )
+		formatString: +€ #,##0;-€ #,##0;€ 0
+		displayFolder: 3. Budget
+		lineageTag: 87cca753-7904-5a8c-b923-bb52754e4468
+
+	/// Gross profit divided by budgeted gross profit.
+	measure 'Gross Profit Attainment %' = DIVIDE ( [Gross Profit], [Budget Gross Profit] )
+		formatString: 0.0%
+		displayFolder: 3. Budget
+		lineageTag: 34e6d737-19a9-5240-a3fe-0d118a94bfba
+
+	/// Orders placed in the period, whatever their status. Order date (R1).
+	measure Orders = DISTINCTCOUNT ( 'Order Line'[Order Id] )
+		formatString: #,##0
+		displayFolder: 4. Orders
+		lineageTag: 9c694c70-68a3-56ef-84cc-b58a2d51d7e3
+
+	/// Value of the orders placed, net of line discounts. Order date.
+	measure 'Order Value' = SUM ( 'Order Line'[Order Value] )
+		formatString: € #,##0
+		displayFolder: 4. Orders
+		lineageTag: 5fb8f903-634e-5dca-92c2-a8d4ebe6c68d
+
+	/// Orders placed in the period and cancelled before invoicing (R3).
+	measure 'Cancelled Orders' = CALCULATE ( [Orders], KEEPFILTERS ( 'Order Line'[Order Status] = "Cancelled" ) )
+		formatString: #,##0
+		displayFolder: 4. Orders
+		lineageTag: 2d1fbdbc-903d-5054-871f-a793b2ab3e55
+
+	/// Value of the cancelled orders: never revenue (R3).
+	measure 'Cancelled Order Value' = CALCULATE ( [Order Value], KEEPFILTERS ( 'Order Line'[Order Status] = "Cancelled" ) )
+		formatString: € #,##0
+		displayFolder: 4. Orders
+		lineageTag: 8aabf002-c8c5-50e1-ab60-67555a9fb8b8
+
+	/// Cancelled orders divided by orders placed.
+	measure 'Cancellation Rate %' = DIVIDE ( [Cancelled Orders], [Orders] )
+		formatString: 0.0%
+		displayFolder: 4. Orders
+		lineageTag: 349440d3-800f-55bb-a296-8402dd082ba0
+
+	/// Orders not invoiced at the data cut.
+	measure 'Open Orders' = CALCULATE ( [Orders], KEEPFILTERS ( 'Order Line'[Order Status] = "Open" ) )
+		formatString: #,##0
+		displayFolder: 4. Orders
+		lineageTag: 0deaba5a-e713-5a60-88d5-14d895b64316
+
+	/// Net Revenue in the same period of the previous year.
+	measure 'Net Revenue PY' = CALCULATE ( [Net Revenue], SAMEPERIODLASTYEAR ( 'Date'[Date] ) )
+		formatString: € #,##0
+		displayFolder: 5. Time Comparison
+		lineageTag: fda36db5-61c3-5f6c-bef6-718d15380ecf
+
+	/// Change of Net Revenue against the same period of the previous year.
+	measure 'Net Revenue YoY %' =
+			VAR CurrentValue = [Net Revenue]
+			VAR PriorValue = [Net Revenue PY]
+			RETURN
+			    IF ( NOT ISBLANK ( CurrentValue ) && NOT ISBLANK ( PriorValue ), DIVIDE ( CurrentValue - PriorValue, PriorValue ) )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: 5. Time Comparison
+		lineageTag: 10349f19-a6cd-5f2d-8a53-1d7ab5ce4f94
+
+	/// Gross Profit in the same period of the previous year.
+	measure 'Gross Profit PY' = CALCULATE ( [Gross Profit], SAMEPERIODLASTYEAR ( 'Date'[Date] ) )
+		formatString: € #,##0
+		displayFolder: 5. Time Comparison
+		lineageTag: a99f07e6-5d60-5afc-a090-68e4b7fbe043
+
+	/// Change of Gross Profit against the same period of the previous year.
+	measure 'Gross Profit YoY %' =
+			VAR CurrentValue = [Gross Profit]
+			VAR PriorValue = [Gross Profit PY]
+			RETURN
+			    IF ( NOT ISBLANK ( CurrentValue ) && NOT ISBLANK ( PriorValue ), DIVIDE ( CurrentValue - PriorValue, PriorValue ) )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: 5. Time Comparison
+		lineageTag: cadd0d5e-7a65-59a4-9969-ff21ac738895
+
+	/// Gross Margin % in the same period of the previous year.
+	measure 'Gross Margin % PY' = CALCULATE ( [Gross Margin %], SAMEPERIODLASTYEAR ( 'Date'[Date] ) )
+		formatString: 0.0%
+		displayFolder: 5. Time Comparison
+		lineageTag: c291b0f5-f527-592f-9dfa-7fc1464501a2
+
+	/// Change of Gross Margin % against the same period of the previous year, in percentage points.
+	measure 'Gross Margin YoY (pp)' =
+			VAR CurrentValue = [Gross Margin %]
+			VAR PriorValue = [Gross Margin % PY]
+			RETURN
+			    IF ( NOT ISBLANK ( CurrentValue ) && NOT ISBLANK ( PriorValue ), ( CurrentValue - PriorValue ) * 100 )
+		formatString: +0.0" pp";-0.0" pp";0.0" pp"
+		displayFolder: 5. Time Comparison
+		lineageTag: 038ff95b-9f53-531d-872f-2d86b14c3046
+
+	/// Net Revenue in the previous month.
+	measure 'Net Revenue PM' = CALCULATE ( [Net Revenue], DATEADD ( 'Date'[Date], -1, MONTH ) )
+		formatString: € #,##0
+		displayFolder: 5. Time Comparison
+		lineageTag: b920a13b-c594-5593-b932-b2fa27d9232c
+
+	/// Change of Net Revenue against the previous month.
+	measure 'Net Revenue MoM %' =
+			VAR CurrentValue = [Net Revenue]
+			VAR PriorValue = [Net Revenue PM]
+			RETURN
+			    IF ( NOT ISBLANK ( CurrentValue ) && NOT ISBLANK ( PriorValue ), DIVIDE ( CurrentValue - PriorValue, PriorValue ) )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: 5. Time Comparison
+		lineageTag: 291e8038-1567-5ed1-a1d4-4b01d90e8f18
+
+	/// Gross Profit in the previous month.
+	measure 'Gross Profit PM' = CALCULATE ( [Gross Profit], DATEADD ( 'Date'[Date], -1, MONTH ) )
+		formatString: € #,##0
+		displayFolder: 5. Time Comparison
+		lineageTag: 839e1c1c-3aae-5137-84f0-92a3a97ac3ac
+
+	/// Change of Gross Profit against the previous month.
+	measure 'Gross Profit MoM %' =
+			VAR CurrentValue = [Gross Profit]
+			VAR PriorValue = [Gross Profit PM]
+			RETURN
+			    IF ( NOT ISBLANK ( CurrentValue ) && NOT ISBLANK ( PriorValue ), DIVIDE ( CurrentValue - PriorValue, PriorValue ) )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: 5. Time Comparison
+		lineageTag: 8c93c73c-d83c-5696-b9b1-9b64063ec507
+
+	/// Data quality checks that failed in the last run.
+	measure 'Failed Checks' = CALCULATE ( COUNTROWS ( 'Data Quality Check' ), 'Data Quality Check'[Result] = "Fail" ) + 0
+		formatString: #,##0
+		displayFolder: 6. Data Quality
+		lineageTag: 3e02f5d0-3ab1-588a-8499-c4c85ef2916e
+
+	/// Sales lines costed with an earlier month's standard cost (SRC-02).
+	measure 'Lines With Carried-Forward Cost' = CALCULATE ( COUNTROWS ( 'Sales' ), 'Sales'[Is Cost Carried Forward] = TRUE () ) + 0
+		formatString: #,##0
+		displayFolder: 6. Data Quality
+		lineageTag: 225c2285-58d2-5f95-ac55-98f1033a6d16
+
+	/// Net revenue of customers exported without a region (SRC-05); outside every regional budget.
+	measure 'Net Revenue Unknown Region' = CALCULATE ( [Net Revenue], 'Region'[Region Code] = "UNK" )
+		formatString: € #,##0
+		displayFolder: 6. Data Quality
+		lineageTag: 64e2c04e-a516-58eb-8fbb-c4bac3f7e996
+
+	/// Budget rows whose category name in the workbook matches no category.
+	measure 'Unmapped Budget Rows' = COUNTROWS ( FILTER ( 'Budget', ISBLANK ( 'Budget'[Category Code] ) ) ) + 0
+		formatString: #,##0
+		displayFolder: 6. Data Quality
+		lineageTag: a85b8fd9-9f44-5842-a80c-60bbef627d52
+
+	/// Net revenue on the workbook Total rows minus the prepared budget, all years. Zero when Power Query kept every budget row.
+	measure 'Budget Workbook Difference' =
+			VAR WorkbookTotal =
+			    CALCULATE ( SUM ( 'Budget Workbook Total'[Amount] ), REMOVEFILTERS (), 'Budget Workbook Total'[Measure] = "Net revenue" )
+			VAR Prepared = CALCULATE ( SUM ( 'Budget'[Net Revenue] ), REMOVEFILTERS () )
+			RETURN
+			    WorkbookTotal - Prepared
+		formatString: € #,##0
+		displayFolder: 6. Data Quality
+		lineageTag: c24529a3-24e6-5a94-b6a5-129aee3c45b5
+
+	/// Text for every page: data date, load time and the simulated-data notice.
+	measure 'Data Status' =
+			VAR AsOf = MAX ( 'Processing Status'[Data As Of Date] )
+			VAR LoadedAt = MAX ( 'Processing Status'[Last Success At] )
+			VAR LastRun = MAX ( 'Processing Status'[Last Run Status] )
+			RETURN
+			    "Data as of " & FORMAT ( AsOf, "dd mmm yyyy" )
+			        & "  |  Loaded " & FORMAT ( LoadedAt, "dd mmm yyyy hh:nn" )
+			        & IF ( LastRun = "Failed", "  |  Warning: the latest load failed", "" )
+			        & "  |  Simulated data" 
+		displayFolder: 7. Report
+		lineageTag: 9911cc3d-7543-5531-9df2-f465abaf006f
+
+	/// Text under every page title: the year, channel, region and category in context.
+	measure 'Filter Context' =
+			VAR YearText =
+			    IF ( HASONEVALUE ( 'Date'[Year] ), "Year " & VALUES ( 'Date'[Year] ), IF ( ISFILTERED ( 'Date'[Year] ), "Several years", "All years" ) )
+			VAR ChannelText =
+			    IF ( ISFILTERED ( 'Channel'[Channel] ), CONCATENATEX ( VALUES ( 'Channel'[Channel] ), 'Channel'[Channel], ", ", 'Channel'[Channel] ), "All channels" )
+			VAR RegionText =
+			    IF ( ISFILTERED ( 'Region'[Region] ), CONCATENATEX ( VALUES ( 'Region'[Region] ), 'Region'[Region], ", ", 'Region'[Region] ), "All regions" )
+			VAR CategoryText =
+			    IF ( ISFILTERED ( 'Category'[Category] ), CONCATENATEX ( VALUES ( 'Category'[Category] ), 'Category'[Category], ", ", 'Category'[Category] ), "All categories" )
+			RETURN
+			    YearText & "  ·  " & ChannelText & "  ·  " & RegionText & "  ·  " & CategoryText
+		displayFolder: 7. Report
+		lineageTag: be8dea6e-a302-57fa-9402-e12bb8a91f41
+
+	column Value
+		dataType: int64
+		isHidden
+		lineageTag: e32f6639-f4b5-518a-b1b5-bbee23c15682
+		summarizeBy: none
+		sourceColumn: Value
+
+		annotation SummarizationSetBy = Explicit
+
+	partition _Measures = m
+		mode: import
+		queryGroup: Support
+		source =
+				let
+				    Source = #table ( type table [Value = Int64.Type], {} )
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

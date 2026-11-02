@@ -1,0 +1,41 @@
+/// The Total row of each budget sheet, kept only to reconcile the prepared budget with the workbook.
+table 'Budget Workbook Total'
+	lineageTag: 49c55deb-8ec7-59ee-af08-4dac6ec27dc5
+
+	column 'Month Start'
+		dataType: dateTime
+		formatString: dd mmm yyyy
+		lineageTag: 086947e8-34e0-57a8-8e6d-36564150c6d5
+		summarizeBy: none
+		sourceColumn: MonthStart
+
+		annotation SummarizationSetBy = Explicit
+
+	column Measure
+		dataType: string
+		lineageTag: 07b3c9aa-4e85-5128-9b46-bb313b363b55
+		summarizeBy: none
+		sourceColumn: Measure
+
+		annotation SummarizationSetBy = Explicit
+
+	column Amount
+		dataType: decimal
+		formatString: #,##0.00
+		lineageTag: 7203fe70-ca27-5d65-8ce3-42e3c30570cb
+		summarizeBy: none
+		sourceColumn: Amount
+
+		annotation SummarizationSetBy = Explicit
+
+	partition 'Budget Workbook Total' = m
+		mode: import
+		queryGroup: Support
+		source =
+				let
+				    Rows = Table.SelectRows ( #"Budget Sheets", each [Channel] = "Total" ),
+				    Kept = Table.SelectColumns ( Rows, {"MonthStart", "Measure", "Amount"} )
+				in
+				    Kept
+
+	annotation PBI_ResultType = Table

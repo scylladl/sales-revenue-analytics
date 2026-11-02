@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "VelmoraSales"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "5a685106-c3a7-58d6-9fed-831c82fb23c6"
+  }
+}

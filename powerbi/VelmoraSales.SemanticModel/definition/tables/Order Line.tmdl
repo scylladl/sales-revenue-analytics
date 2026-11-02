@@ -1,0 +1,117 @@
+/// One row per order line whatever its status, by order date: orders taken, cancellations and open orders (rule R3).
+table 'Order Line'
+	lineageTag: 62a9de35-44b2-5a89-b5ea-3da803edd1e5
+
+	column 'Order Id'
+		dataType: string
+		isHidden
+		lineageTag: fd320bb7-068e-5e7d-8162-4b4764a0c864
+		summarizeBy: none
+		sourceColumn: OrderId
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Order Date'
+		dataType: dateTime
+		isHidden
+		formatString: dd mmm yyyy
+		lineageTag: 7ae70a09-acc6-505c-88b6-2f9ddef74165
+		summarizeBy: none
+		sourceColumn: OrderDate
+
+		annotation SummarizationSetBy = Explicit
+
+	/// Invoiced, Cancelled, or Open (not invoiced at the data cut).
+	column 'Order Status'
+		dataType: string
+		lineageTag: dfd16841-bdef-548d-bdd2-7d426bb9313a
+		summarizeBy: none
+		sourceColumn: OrderStatus
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Customer Key'
+		dataType: int64
+		isHidden
+		lineageTag: a5ee4eca-5090-51fb-8a42-90b20b082ce2
+		summarizeBy: none
+		sourceColumn: CustomerKey
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Product Key'
+		dataType: int64
+		isHidden
+		lineageTag: 34e42653-ad97-5443-a67b-8a72332efdd5
+		summarizeBy: none
+		sourceColumn: ProductKey
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Channel Code'
+		dataType: string
+		isHidden
+		lineageTag: 0542081e-506d-5e35-8b72-ac3e970afde6
+		summarizeBy: none
+		sourceColumn: ChannelCode
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Region Code'
+		dataType: string
+		isHidden
+		lineageTag: 82332cab-1e35-587d-9bc9-c1152e7e35a2
+		summarizeBy: none
+		sourceColumn: RegionCode
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Category Code'
+		dataType: string
+		isHidden
+		lineageTag: 5398b2f9-29e9-510d-a6ab-6d7c53b33d86
+		summarizeBy: none
+		sourceColumn: CategoryCode
+
+		annotation SummarizationSetBy = Explicit
+
+	column Campaign
+		dataType: string
+		isHidden
+		lineageTag: a39d8e65-1a37-5076-8a36-de4d7a6cda8a
+		summarizeBy: none
+		sourceColumn: CampaignCode
+
+		annotation SummarizationSetBy = Explicit
+
+	column Quantity
+		dataType: int64
+		isHidden
+		lineageTag: af6e09c8-7cf9-50c1-ba99-7421f305a95c
+		summarizeBy: none
+		sourceColumn: Quantity
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Order Value'
+		dataType: decimal
+		isHidden
+		formatString: #,##0.00
+		lineageTag: dbe737d5-4a3b-5c15-8347-4f9c7eb39be4
+		summarizeBy: none
+		sourceColumn: OrderValue
+
+		annotation SummarizationSetBy = Explicit
+
+	partition 'Order Line' = m
+		mode: import
+		queryGroup: Facts
+		source =
+				let
+				    Source = Sql.Database ( Server, Database ),
+				    Data = Source{[Schema = "rpt", Item = "vw_OrderLine"]}[Data],
+				    Typed = Table.TransformColumnTypes ( Data, {{"CustomerKey", Int64.Type}, {"ProductKey", Int64.Type}, {"Quantity", Int64.Type}, {"OrderValue", Currency.Type}} )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

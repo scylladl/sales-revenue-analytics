@@ -1,0 +1,99 @@
+/// Calendar of the data period, one row per day (marked as date table).
+table Date
+	lineageTag: 2be24459-6ade-5262-a299-be76c723a760
+	dataCategory: Time
+
+	column Date
+		dataType: dateTime
+		isKey
+		formatString: dd mmm yyyy
+		lineageTag: 28e2fac9-272c-5edd-a3ee-595575d967eb
+		summarizeBy: none
+		sourceColumn: Date
+
+		annotation SummarizationSetBy = Explicit
+
+	column Year
+		dataType: int64
+		formatString: 0
+		lineageTag: 6abe613f-8fda-52e4-922e-982804370df9
+		summarizeBy: none
+		sourceColumn: Year
+
+		annotation SummarizationSetBy = Explicit
+
+	column Quarter
+		dataType: string
+		lineageTag: 4a7bb36f-a334-5979-bb91-dbd00d162f36
+		summarizeBy: none
+		sourceColumn: QuarterLabel
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Month Number'
+		dataType: int64
+		isHidden
+		lineageTag: 4c72fc60-1f54-534b-8780-51ef67d3cd79
+		summarizeBy: none
+		sourceColumn: MonthNumber
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Month Name'
+		dataType: string
+		lineageTag: db76053e-9a0f-5f21-aeeb-cf2a89849731
+		summarizeBy: none
+		sourceColumn: MonthName
+		sortByColumn: 'Month Number'
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Month Short'
+		dataType: string
+		lineageTag: 266e3980-6079-5ed5-a40b-a17f53f70901
+		summarizeBy: none
+		sourceColumn: MonthShort
+		sortByColumn: 'Month Number'
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Year Month'
+		dataType: int64
+		isHidden
+		lineageTag: 0810b800-d1b0-5b86-866d-f495891261ca
+		summarizeBy: none
+		sourceColumn: YearMonth
+
+		annotation SummarizationSetBy = Explicit
+
+	/// Month as 'Mar 2025'.
+	column Month
+		dataType: string
+		lineageTag: 2e4a9903-101a-57dd-9218-9bc4598c2c12
+		summarizeBy: none
+		sourceColumn: MonthLabel
+		sortByColumn: 'Year Month'
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Month Start'
+		dataType: dateTime
+		formatString: dd mmm yyyy
+		lineageTag: 5e149048-ea26-5bcc-8b83-b6d24c9b9e8a
+		summarizeBy: none
+		sourceColumn: MonthStart
+
+		annotation SummarizationSetBy = Explicit
+
+	partition Date = m
+		mode: import
+		queryGroup: Dimensions
+		source =
+				let
+				    Source = Sql.Database ( Server, Database ),
+				    Data = Source{[Schema = "rpt", Item = "vw_Date"]}[Data],
+				    Typed = Table.TransformColumnTypes ( Data, {{"Year", Int64.Type}, {"MonthNumber", Int64.Type}, {"YearMonth", Int64.Type}} )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

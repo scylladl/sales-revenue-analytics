@@ -1,0 +1,51 @@
+/// Product category, the grain of the budget.
+table Category
+	lineageTag: 1abd3400-82e4-5329-ae2c-697512490b26
+
+	column 'Category Code'
+		dataType: string
+		isHidden
+		lineageTag: fdadf3ce-4e9e-533a-b028-402992aecc4c
+		summarizeBy: none
+		sourceColumn: CategoryCode
+
+		annotation SummarizationSetBy = Explicit
+
+	column Category
+		dataType: string
+		lineageTag: a553101e-ff76-5ecf-b70b-c358ca0fa68c
+		summarizeBy: none
+		sourceColumn: CategoryName
+		sortByColumn: 'Category Sort'
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Is Coffee'
+		dataType: boolean
+		lineageTag: f4a7295b-8ab5-5189-affa-df0fccd1657b
+		summarizeBy: none
+		sourceColumn: IsCoffee
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Category Sort'
+		dataType: int64
+		isHidden
+		lineageTag: f8ff3616-289e-505e-b800-7ee54014d7f1
+		summarizeBy: none
+		sourceColumn: SortOrder
+
+		annotation SummarizationSetBy = Explicit
+
+	partition Category = m
+		mode: import
+		queryGroup: Dimensions
+		source =
+				let
+				    Source = Sql.Database ( Server, Database ),
+				    Data = Source{[Schema = "rpt", Item = "vw_Category"]}[Data],
+				    Typed = Table.TransformColumnTypes ( Data, {{"SortOrder", Int64.Type}} )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

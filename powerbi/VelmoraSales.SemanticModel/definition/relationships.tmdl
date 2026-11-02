@@ -1,0 +1,68 @@
+relationship 7cb57f71-2b13-514f-8f95-4b2da22fe4ae
+	fromColumn: Sales.'Posting Date'
+	toColumn: Date.Date
+
+relationship f992f0d0-f212-5679-bf83-29d16b975c32
+	isActive: false
+	fromColumn: Sales.'Original Invoice Date'
+	toColumn: Date.Date
+
+relationship 4d14d9d8-dcb5-5da2-a1e2-ed75f9c1c941
+	fromColumn: Sales.'Customer Key'
+	toColumn: Customer.'Customer Key'
+
+relationship bb1d9888-7df7-52da-bfb5-989e9d2ed2ef
+	fromColumn: Sales.'Product Key'
+	toColumn: Product.'Product Key'
+
+relationship bcc1d30a-bae5-5c1a-a5a1-5eb226fb60bf
+	fromColumn: Sales.'Channel Code'
+	toColumn: Channel.'Channel Code'
+
+relationship d5d933a9-ba51-588d-86d8-bbce91c59962
+	fromColumn: Sales.'Region Code'
+	toColumn: Region.'Region Code'
+
+relationship 139ff3df-f5ea-5a7c-973f-679f42c32225
+	fromColumn: Sales.'Category Code'
+	toColumn: Category.'Category Code'
+
+relationship bcb1f833-8956-5682-9e0e-020356d04411
+	fromColumn: 'Order Line'.'Order Date'
+	toColumn: Date.Date
+
+relationship a19e473e-1757-5a1b-824c-59f1caa2d383
+	fromColumn: 'Order Line'.'Customer Key'
+	toColumn: Customer.'Customer Key'
+
+relationship 8de48371-cf79-56c4-8458-9a71d8f4257b
+	fromColumn: 'Order Line'.'Product Key'
+	toColumn: Product.'Product Key'
+
+relationship 25dbb634-7e20-5e62-a82c-6d1fb3fa4ee3
+	fromColumn: 'Order Line'.'Channel Code'
+	toColumn: Channel.'Channel Code'
+
+relationship 9a893c54-260f-5602-9ffa-f63383a8388b
+	fromColumn: 'Order Line'.'Region Code'
+	toColumn: Region.'Region Code'
+
+relationship 215df5eb-db1c-5586-9fde-8b3386cf4d90
+	fromColumn: 'Order Line'.'Category Code'
+	toColumn: Category.'Category Code'
+
+relationship bc064a52-c54e-5393-8873-b5b6ee88ffb2
+	fromColumn: Budget.'Month Start'
+	toColumn: Date.Date
+
+relationship 58fdb800-053f-5917-afa5-a60d4d3989db
+	fromColumn: Budget.'Channel Code'
+	toColumn: Channel.'Channel Code'
+
+relationship dd6f9904-ce39-5d41-a9b7-3d85ea84998a
+	fromColumn: Budget.'Region Code'
+	toColumn: Region.'Region Code'
+
+relationship b669090d-54d5-5a96-9ec8-eb750f63840b
+	fromColumn: Budget.'Category Code'
+	toColumn: Category.'Category Code'

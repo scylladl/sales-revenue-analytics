@@ -1,0 +1,213 @@
+/// One row per invoice line and per credit note line (rules R1 to R5). Amounts exclude VAT. Return rows carry a negative quantity and net revenue; Posting Date is the invoice or credit note date.
+table Sales
+	lineageTag: e5cd264f-adf9-540a-a579-31e53645dea9
+
+	column 'Order Id'
+		dataType: string
+		isHidden
+		lineageTag: 945bbaa7-6dba-579a-a778-5107fe4f14bb
+		summarizeBy: none
+		sourceColumn: OrderId
+
+		annotation SummarizationSetBy = Explicit
+
+	/// Invoice or Return.
+	column 'Line Type'
+		dataType: string
+		lineageTag: 9a5e913b-b0aa-563d-bbca-9dcfff3543af
+		summarizeBy: none
+		sourceColumn: LineType
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Posting Date'
+		dataType: dateTime
+		isHidden
+		formatString: dd mmm yyyy
+		lineageTag: 1ba9d94b-afa4-5b9e-b5a8-30381a097754
+		summarizeBy: none
+		sourceColumn: PostingDate
+
+		annotation SummarizationSetBy = Explicit
+
+	/// Invoice date of the sale; on return rows it attributes the return to the original sale (inactive relationship).
+	column 'Original Invoice Date'
+		dataType: dateTime
+		isHidden
+		formatString: dd mmm yyyy
+		lineageTag: 9728c043-1520-5ae1-a755-f20f4f0710d8
+		summarizeBy: none
+		sourceColumn: OriginalInvoiceDate
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Customer Key'
+		dataType: int64
+		isHidden
+		lineageTag: 7b7e68c5-045c-5070-8c1c-470c801e29ba
+		summarizeBy: none
+		sourceColumn: CustomerKey
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Product Key'
+		dataType: int64
+		isHidden
+		lineageTag: 036c6445-6829-58db-9190-5e0ebeb618a5
+		summarizeBy: none
+		sourceColumn: ProductKey
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Channel Code'
+		dataType: string
+		isHidden
+		lineageTag: 9bc99760-a152-5198-ad16-85a9cb9df13a
+		summarizeBy: none
+		sourceColumn: ChannelCode
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Region Code'
+		dataType: string
+		isHidden
+		lineageTag: 0d8f78c0-5146-54c9-b683-f8281fd77ae5
+		summarizeBy: none
+		sourceColumn: RegionCode
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Category Code'
+		dataType: string
+		isHidden
+		lineageTag: 7dfac17d-4520-5c12-b9dc-6b4be1a6acc1
+		summarizeBy: none
+		sourceColumn: CategoryCode
+
+		annotation SummarizationSetBy = Explicit
+
+	/// E-commerce campaign (Black Friday, Christmas, summer) active on the order.
+	column Campaign
+		dataType: string
+		lineageTag: d084f652-5c7a-54af-98a3-641e050101fd
+		summarizeBy: none
+		sourceColumn: CampaignCode
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Return Reason'
+		dataType: string
+		lineageTag: 8f903357-61f1-53b3-b1eb-0f8e96f17313
+		summarizeBy: none
+		sourceColumn: ReturnReason
+
+		annotation SummarizationSetBy = Explicit
+
+	column Quantity
+		dataType: int64
+		isHidden
+		lineageTag: 6841a3be-797f-52e1-865c-e6466837a210
+		summarizeBy: none
+		sourceColumn: Quantity
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Discount %'
+		dataType: decimal
+		isHidden
+		formatString: 0.0
+		lineageTag: 00ad0fef-3864-520e-a6d2-bef5a7154a1a
+		summarizeBy: none
+		sourceColumn: DiscountPct
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Gross Sales'
+		dataType: decimal
+		isHidden
+		formatString: #,##0.00
+		lineageTag: 623cd85d-9c79-5c73-b734-89cd3653ab9b
+		summarizeBy: none
+		sourceColumn: GrossSales
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Discount Amount'
+		dataType: decimal
+		isHidden
+		formatString: #,##0.00
+		lineageTag: c059b7b8-a1b6-5e1e-b165-43017692daa1
+		summarizeBy: none
+		sourceColumn: DiscountAmount
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Return Amount'
+		dataType: decimal
+		isHidden
+		formatString: #,##0.00
+		lineageTag: bcf93d50-519d-55c3-a858-d7b75b60cb00
+		summarizeBy: none
+		sourceColumn: ReturnAmount
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Net Revenue'
+		dataType: decimal
+		isHidden
+		formatString: #,##0.00
+		lineageTag: b891f784-e60b-503b-9574-6d868dc1954d
+		summarizeBy: none
+		sourceColumn: NetRevenue
+
+		annotation SummarizationSetBy = Explicit
+
+	column COGS
+		dataType: decimal
+		isHidden
+		formatString: #,##0.00
+		lineageTag: 0adb5bef-2d51-57cf-a691-23df441cadef
+		summarizeBy: none
+		sourceColumn: Cogs
+
+		annotation SummarizationSetBy = Explicit
+
+	/// No standard cost for the invoice month; the latest earlier cost was used (check SRC-02).
+	column 'Is Cost Carried Forward'
+		dataType: boolean
+		lineageTag: 41165987-1148-5370-82d0-b44f7f16ef53
+		summarizeBy: none
+		sourceColumn: IsCostCarriedForward
+
+		annotation SummarizationSetBy = Explicit
+
+	/// Return above the invoiced quantity, capped (check SRC-03).
+	column 'Is Quantity Capped'
+		dataType: boolean
+		lineageTag: d8c0c3c1-b580-5cf7-a04e-856ddd7c4ec0
+		summarizeBy: none
+		sourceColumn: IsQuantityCapped
+
+		annotation SummarizationSetBy = Explicit
+
+	/// Invoice dated before its order; date kept (check SRC-04).
+	column 'Is Invoice Before Order'
+		dataType: boolean
+		lineageTag: efdfbfd1-d593-5745-b52c-2b7430c79de5
+		summarizeBy: none
+		sourceColumn: IsInvoiceBeforeOrder
+
+		annotation SummarizationSetBy = Explicit
+
+	partition Sales = m
+		mode: import
+		queryGroup: Facts
+		source =
+				let
+				    Source = Sql.Database ( Server, Database ),
+				    Data = Source{[Schema = "rpt", Item = "vw_Sales"]}[Data],
+				    Typed = Table.TransformColumnTypes ( Data, {{"CustomerKey", Int64.Type}, {"ProductKey", Int64.Type}, {"Quantity", Int64.Type}, {"DiscountPct", type number}, {"GrossSales", Currency.Type}, {"DiscountAmount", Currency.Type}, {"ReturnAmount", Currency.Type}, {"NetRevenue", Currency.Type}, {"Cogs", Currency.Type}} )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

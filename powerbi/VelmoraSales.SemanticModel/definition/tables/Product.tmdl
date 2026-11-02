@@ -1,0 +1,58 @@
+/// Products (SKUs).
+table Product
+	lineageTag: 12c60d4c-5f98-5ea0-adb7-6f1a38ee1c06
+
+	column 'Product Key'
+		dataType: int64
+		isHidden
+		lineageTag: 541c399e-954a-5018-8e28-911ea97e222a
+		summarizeBy: none
+		sourceColumn: ProductKey
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Product Id'
+		dataType: string
+		lineageTag: b3fc5478-2152-5f06-96c5-093bf17d404f
+		summarizeBy: none
+		sourceColumn: ProductId
+
+		annotation SummarizationSetBy = Explicit
+
+	column Product
+		dataType: string
+		lineageTag: 63c12a8d-b25d-57c4-9dea-2c47464a9b0c
+		summarizeBy: none
+		sourceColumn: ProductName
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Pack Size'
+		dataType: string
+		lineageTag: c4432b32-5f66-59eb-b26a-f78e093a5147
+		summarizeBy: none
+		sourceColumn: PackSize
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Launch Date'
+		dataType: dateTime
+		formatString: dd mmm yyyy
+		lineageTag: f4170551-407c-5769-9cf9-5039b8bcf7f3
+		summarizeBy: none
+		sourceColumn: LaunchDate
+
+		annotation SummarizationSetBy = Explicit
+
+	partition Product = m
+		mode: import
+		queryGroup: Dimensions
+		source =
+				let
+				    Source = Sql.Database ( Server, Database ),
+				    Data = Source{[Schema = "rpt", Item = "vw_Product"]}[Data],
+				    Typed = Table.TransformColumnTypes ( Data, {{"ProductKey", Int64.Type}} )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

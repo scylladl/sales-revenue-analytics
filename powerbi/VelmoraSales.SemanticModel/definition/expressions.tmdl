@@ -1,0 +1,40 @@
+/// SQL Server instance that hosts VelmoraSales.
+expression Server = "localhost" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]
+	lineageTag: c4797d4b-2699-5138-9fbc-c91e9fa7a461
+	queryGroup: Parameters
+
+	annotation PBI_ResultType = Text
+
+/// Database with the rpt views.
+expression Database = "VelmoraSales" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]
+	lineageTag: e194e37f-612b-5c6a-9bac-3d788196fb5a
+	queryGroup: Parameters
+
+	annotation PBI_ResultType = Text
+
+/// Full path of the finance budget workbook (build.ps1 sets it to this clone).
+expression 'Budget File' = "C:\path\to\sales-revenue-analytics\data\generated\budget\Velmora_Budget_FY2023-2025.xlsx" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]
+	lineageTag: 4492f0a9-1fea-59be-b1af-8c8c0e1bb1b2
+	queryGroup: Parameters
+
+	annotation PBI_ResultType = Text
+
+/// Every budget sheet, unpivoted to one row per channel, region, category, measure and month. Staging query, not loaded.
+expression 'Budget Sheets' =
+		let
+		    Source = Excel.Workbook ( File.Contents ( #"Budget File" ), null, true ),
+		    Sheets = Table.SelectRows ( Source, each [Kind] = "Sheet" and Text.StartsWith ( [Name], "FY" ) ),
+		    // rows 1 to 3 hold the title, a note and a blank line; row 4 holds the column names
+		    WithRows = Table.AddColumn ( Sheets, "Rows", each Table.PromoteHeaders ( Table.Skip ( [Data], 3 ), [PromoteAllScalars = true] ) ),
+		    WithYear = Table.AddColumn ( WithRows, "Year", each Number.From ( Text.End ( [Name], 4 ) ), Int64.Type ),
+		    Months = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"},
+		    Expanded = Table.ExpandTableColumn ( Table.SelectColumns ( WithYear, {"Year", "Rows"} ), "Rows", {"Channel", "Region", "Category", "Measure"} & Months ),
+		    Unpivoted = Table.UnpivotOtherColumns ( Expanded, {"Year", "Channel", "Region", "Category", "Measure"}, "Month", "Amount" ),
+		    Dated = Table.AddColumn ( Unpivoted, "MonthStart", each #date ( [Year], List.PositionOf ( Months, [Month] ) + 1, 1 ), type date ),
+		    Typed = Table.TransformColumnTypes ( Dated, {{"Channel", type text}, {"Region", type text}, {"Category", type text}, {"Measure", type text}, {"Amount", Currency.Type}} )
+		in
+		    Typed
+	lineageTag: 13167edb-4574-5ad3-af03-d54b9113ff98
+	queryGroup: Support
+
+	annotation PBI_ResultType = Table

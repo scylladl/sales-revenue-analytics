@@ -1,0 +1,42 @@
+/// Sales region of the customer. Unknown (UNK) holds customers exported without a region.
+table Region
+	lineageTag: a6389287-a0e7-5f46-9ff3-314abee86e3d
+
+	column 'Region Code'
+		dataType: string
+		lineageTag: a302a62e-51e0-5e04-aa48-b903a9dc6f25
+		summarizeBy: none
+		sourceColumn: RegionCode
+
+		annotation SummarizationSetBy = Explicit
+
+	column Region
+		dataType: string
+		lineageTag: bbcf7b5c-a51b-523f-aa8d-f8da819f9d22
+		summarizeBy: none
+		sourceColumn: RegionName
+		sortByColumn: 'Region Sort'
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Region Sort'
+		dataType: int64
+		isHidden
+		lineageTag: 0098f9bf-d351-5deb-9ba0-67b0d1a7ae1c
+		summarizeBy: none
+		sourceColumn: SortOrder
+
+		annotation SummarizationSetBy = Explicit
+
+	partition Region = m
+		mode: import
+		queryGroup: Dimensions
+		source =
+				let
+				    Source = Sql.Database ( Server, Database ),
+				    Data = Source{[Schema = "rpt", Item = "vw_Region"]}[Data],
+				    Typed = Table.TransformColumnTypes ( Data, {{"SortOrder", Int64.Type}} )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

@@ -1,0 +1,15 @@
+// Budget gap split into volume and margin, by year and channel (docs/06-insights.md, simulated data).
+//   volume = (net revenue - budget net revenue) x budget gross margin %
+//   margin = net revenue x (gross margin % - budget gross margin %)
+// The two parts add up to Gross Profit vs Budget. Run against the model open in Power BI Desktop.
+EVALUATE
+ADDCOLUMNS (
+    SUMMARIZECOLUMNS ( 'Date'[Year], 'Channel'[Channel] ),
+    "Net Revenue vs Budget", [Net Revenue vs Budget],
+    "Gross Profit vs Budget", [Gross Profit vs Budget],
+    "Volume Effect", ( [Net Revenue] - [Budget Net Revenue] ) * [Budget Gross Margin %],
+    "Margin Effect", [Net Revenue] * ( [Gross Margin %] - [Budget Gross Margin %] ),
+    "Gross Margin %", [Gross Margin %],
+    "Budget Gross Margin %", [Budget Gross Margin %]
+)
+ORDER BY 'Date'[Year], 'Channel'[Channel]

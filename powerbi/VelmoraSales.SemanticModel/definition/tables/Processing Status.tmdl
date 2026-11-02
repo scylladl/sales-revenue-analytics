@@ -1,0 +1,76 @@
+/// Last successful load and the status of the latest run.
+table 'Processing Status'
+	lineageTag: 065dc8b4-3eaa-58da-b772-a1eb3445a617
+
+	column 'Last Success Run Id'
+		dataType: int64
+		isHidden
+		lineageTag: c00ff7bc-78af-5b53-acf0-bfe2706b736d
+		summarizeBy: none
+		sourceColumn: LastSuccessRunId
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Last Success Mode'
+		dataType: string
+		lineageTag: f92a37ea-8c4c-50d6-9d69-69712ab135e1
+		summarizeBy: none
+		sourceColumn: LastSuccessMode
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Last Success At'
+		dataType: dateTime
+		formatString: dd mmm yyyy hh:nn
+		lineageTag: b23d6507-8b99-5113-85d3-e3767307d02d
+		summarizeBy: none
+		sourceColumn: LastSuccessAt
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Data As Of Date'
+		dataType: dateTime
+		formatString: dd mmm yyyy
+		lineageTag: d535d434-73f3-51c7-baef-1de7b553afe0
+		summarizeBy: none
+		sourceColumn: DataAsOfDate
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Last Run Status'
+		dataType: string
+		lineageTag: 6a3951b9-65b7-5bf3-8e64-f5dac39d260c
+		summarizeBy: none
+		sourceColumn: LastRunStatus
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Last Run Started At'
+		dataType: dateTime
+		formatString: dd mmm yyyy hh:nn
+		lineageTag: b803edc4-bbce-5b6f-9344-7463b4d85baf
+		summarizeBy: none
+		sourceColumn: LastRunStartedAt
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Last Run Error'
+		dataType: string
+		lineageTag: 9679881e-125b-572e-870b-0550f4900242
+		summarizeBy: none
+		sourceColumn: LastRunError
+
+		annotation SummarizationSetBy = Explicit
+
+	partition 'Processing Status' = m
+		mode: import
+		queryGroup: Support
+		source =
+				let
+				    Source = Sql.Database ( Server, Database ),
+				    Data = Source{[Schema = "rpt", Item = "vw_ProcessingStatus"]}[Data],
+				    Typed = Table.TransformColumnTypes ( Data, {{"LastSuccessRunId", Int64.Type}} )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table
