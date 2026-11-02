@@ -31,5 +31,5 @@ if ($LASTEXITCODE -ne 0) { throw "Source load failed (exit code $LASTEXITCODE)" 
 
 & "$root\database\refresh.ps1" -Server $Server -FullReload
 
-& $python -X utf8 "$root\powerbi\generate_model.py"
+& $python -X utf8 "$root\powerbi\generate_model.py" --budget-file "$root\data\generated\budget\Velmora_Budget_FY2023-2025.xlsx"
 if ($LASTEXITCODE -ne 0) { throw "Semantic model generation failed (exit code $LASTEXITCODE)" }

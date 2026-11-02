@@ -104,3 +104,10 @@ targets the page id, since Power BI ignores display names in navigation actions.
 where it renders (colours, fonts, solid bars, no area shading, no title or border on buttons); the fill and text
 of buttons and shapes are set on each visual, because theme defaults did not reach them in Power BI Desktop. The
 report build takes about ten minutes as a result.
+
+A dark variant ("Velmora Dark Roast", `powerbi/VelmoraSales-Dark.pbip`) uses the same model, pages and layout, built
+by `powerbi/build_report.py --design dark`: dark coffee canvas, near-black rail, copper accents and its own palette,
+validated against the dark visual background. Building it exposed a defect the light design hid: the sqlbi base
+theme fixes white visual backgrounds and a grey canvas, so the design colours never reached them (on the light
+design the canvas was grey instead of cream, still legible). Both designs now set the visual and page backgrounds
+in the theme.

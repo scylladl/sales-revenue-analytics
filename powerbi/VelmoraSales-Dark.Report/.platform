@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "VelmoraSales-Dark"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "723f1d5c-4136-47de-8750-e9dc886c89a8"
+  }
+}

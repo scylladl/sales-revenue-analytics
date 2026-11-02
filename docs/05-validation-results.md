@@ -90,13 +90,15 @@ The source counts equal the defects the generator wrote (`data/generated/defects
 - After loading in Desktop, every measure and partition is in state Ready; row counts equal the dw tables;
   the budget has 2,808 rows (3 years × 12 months × 78 channel-region-category cells), Budget Workbook
   Difference is 0 and Unmapped Budget Rows is 0.
-- The six pages were rendered in Power BI Desktop and inspected from screenshots after every change.
+- The six pages of both designs (light and dark) were rendered in Power BI Desktop and inspected from screenshots after every change.
   Problems found that way and fixed: the year filter was written as text and never matched the integer year;
   month axes were sorted by value; the KPI visual showed December instead of the year (replaced by cards);
   the top-customers table grouped customers by name, merging different customers with the same name
   (now grouped by customer id). After the redesign: theme defaults gave the rail buttons a title divider and
   border, and did not reach their fill and text (set per button); the combo chart drew the budget line with a
-  shaded area over the revenue columns (area shading switched off for every visual type).
+  shaded area over the revenue columns (area shading switched off for every visual type). The dark design showed
+  that the sqlbi base theme fixes literal colours (white visual backgrounds, grey canvas, card values, table
+  headers, cells and totals, axis labels, gridlines); the theme of both designs now sets each of them.
 
 ## Not tested or pending manual validation
 
@@ -107,4 +109,4 @@ The source counts equal the defects the generator wrote (`data/generated/defects
 - Accessibility (contrast, alt text, keyboard order) was not reviewed.
 - Performance was not measured beyond the load timings above; no claim is made about report speed.
 - The build was run on one machine. A clean machine needs SQL Server, ODBC Driver 18, Python and Power BI Desktop.
-- The `Budget File` parameter holds the absolute path of the clone that ran `build.ps1`.
+- The `Budget File` parameter is a placeholder in the repository; `build.ps1` sets it to the clone's path.

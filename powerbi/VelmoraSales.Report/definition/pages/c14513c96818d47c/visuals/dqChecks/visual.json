@@ -1,0 +1,144 @@
+{
+  "name": "dqChecks",
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "queryRef": "Data Quality Check.Check Code",
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Data Quality Check"
+                    }
+                  },
+                  "Property": "Check Code"
+                }
+              },
+              "nativeQueryRef": "Check Code"
+            },
+            {
+              "queryRef": "Data Quality Check.Check",
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Data Quality Check"
+                    }
+                  },
+                  "Property": "Check"
+                }
+              },
+              "nativeQueryRef": "Check"
+            },
+            {
+              "queryRef": "Data Quality Check.Affected Rows",
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Data Quality Check"
+                    }
+                  },
+                  "Property": "Affected Rows"
+                }
+              },
+              "nativeQueryRef": "Affected Rows"
+            },
+            {
+              "queryRef": "Data Quality Check.Unhandled Rows",
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Data Quality Check"
+                    }
+                  },
+                  "Property": "Unhandled Rows"
+                }
+              },
+              "nativeQueryRef": "Unhandled Rows"
+            },
+            {
+              "queryRef": "Data Quality Check.Result",
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Data Quality Check"
+                    }
+                  },
+                  "Property": "Result"
+                }
+              },
+              "nativeQueryRef": "Result"
+            },
+            {
+              "queryRef": "Data Quality Check.Handling",
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Data Quality Check"
+                    }
+                  },
+                  "Property": "Handling"
+                }
+              },
+              "nativeQueryRef": "Handling"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {},
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Data quality checks (dq.usp_RunChecks)'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "subTitle": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "position": {
+    "x": 184,
+    "y": 448,
+    "width": 1072,
+    "height": 248,
+    "z": 0,
+    "tabOrder": 0
+  },
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.13.0/schema.json"
+}

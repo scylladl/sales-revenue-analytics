@@ -1,17 +1,21 @@
 """
-Builds the VelmoraSales report (powerbi/VelmoraSales.Report) from scratch through the pbir CLI.
+Builds a VelmoraSales report from scratch through the pbir CLI, in one of two designs on the same semantic model:
+  light  powerbi/VelmoraSales.Report       (the main report)
+  dark   powerbi/VelmoraSales-Dark.Report
 
 Every page, visual, binding and filter is created with pbir commands, so the report can be rebuilt and reviewed as
 code. The script recreates the report folder: manual edits made in Power BI Desktop are lost unless they are
 copied here first. Close the report in Power BI Desktop before running it.
 
-Design "Velmora Roast": cream canvas, an espresso navigation rail on the left with the brand and one button per
-page, caramel for actuals and slate blue for the comparison series (budget, prior year), terracotta for negatives.
-The categorical palette passes the colour-vision checks of the dataviz validator (lightness band, chroma, CVD and
-normal-vision separation, contrast on the visual background).
+Both designs share the layout: a navigation rail on the left with the brand and one button per page, actual values
+in the first colour (caramel, copper in the dark design) and comparison series (budget, prior year) in blue.
+"Velmora Roast" is a cream canvas with an espresso rail; "Velmora Dark Roast" a dark coffee canvas with copper
+accents. Each categorical palette passes the colour-vision checks of the dataviz validator (lightness band,
+chroma, CVD and normal-vision separation, contrast) on its own visual background.
 
-Usage: python powerbi/build_report.py
+Usage: python powerbi/build_report.py [--design light|dark]
 """
+import argparse
 import json
 import shutil
 import subprocess
@@ -20,7 +24,6 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-R = "VelmoraSales.Report"
 PBIR = shutil.which("pbir") or str(Path.home() / "AppData/Roaming/Python/Python313/Scripts/pbir.exe")
 
 # 1280 x 720 canvas: a 160 px rail on the left, then 24 px margins and 16 px gaps
@@ -30,19 +33,57 @@ W = 1280 - X0 - M
 HALF = (W - G) // 2
 ROW_A, ROW_B, ROW_C = (76, 92), (184, 248), (448, 248)
 
-ESPRESSO, CREAM, CARAMEL = "#3B2A20", "#F7F2EA", "#B4612A"
-THEME = dict(data=["#B4612A", "#2F6FB0", "#3A9150", "#A0507E", "#8F7420", "#6A4FA0"],
-             background="#FFFDF9", background_light=CREAM, foreground=ESPRESSO, secondary="#7A6A5E", table_accent=CARAMEL,
-             good="#3A9150", bad="#B03A2E", neutral="#8C8279", minimum="#F3E6D8", maximum=CARAMEL)
-FONTS = {"title": ("Segoe UI Semibold", 12, ESPRESSO), "header": ("Segoe UI Semibold", 11, ESPRESSO),
-         "label": ("Segoe UI", 10, "#5A4A3F"), "callout": ("Segoe UI Semibold", 24, ESPRESSO),
-         "dataTitle": ("Segoe UI", 10, "#7A6A5E"), "smallLabel": ("Segoe UI", 9, "#5A4A3F")}
+DESIGNS = {
+    "light": dict(
+        report="VelmoraSales.Report", theme_name="Velmora Roast", page="#F7F2EA", wallpaper="#EFE6DA", border="#E6DACB",
+        rail="#3B2A20", brand="#F7F2EA", brand_note="#CDBBA7", nav_text="#E9DCCB", nav_active_fill="#B4612A",
+        nav_active_text="#FFFFFF", header_text="#3B2A20", header_note="#7A6A5E",
+        theme=dict(data=["#B4612A", "#2F6FB0", "#3A9150", "#A0507E", "#8F7420", "#6A4FA0"], background="#FFFDF9",
+                   background_light="#F7F2EA", foreground="#3B2A20", secondary="#7A6A5E", table_accent="#B4612A",
+                   good="#3A9150", bad="#B03A2E", neutral="#8C8279", minimum="#F3E6D8", maximum="#B4612A"),
+        fonts={"title": ("Segoe UI Semibold", 12, "#3B2A20"), "header": ("Segoe UI Semibold", 11, "#3B2A20"),
+               "label": ("Segoe UI", 10, "#5A4A3F"), "callout": ("Segoe UI Semibold", 24, "#3B2A20"),
+               "dataTitle": ("Segoe UI", 10, "#7A6A5E"), "smallLabel": ("Segoe UI", 9, "#5A4A3F")}),
+    "dark": dict(
+        report="VelmoraSales-Dark.Report", theme_name="Velmora Dark Roast", page="#1C1512", wallpaper="#140F0C",
+        border="#3A2C24", rail="#120D0A", brand="#F1E7DA", brand_note="#A89786", nav_text="#D9CBBB",
+        nav_active_fill="#CC7838", nav_active_text="#1C1512", header_text="#F1E7DA", header_note="#B5A493",
+        theme=dict(data=["#CC7838", "#3F8FDB", "#45A85A", "#C65E97", "#B08A22", "#8A73D6"], background="#271D18",
+                   background_light="#2F241E", foreground="#F1E7DA", secondary="#B5A493", table_accent="#CC7838",
+                   good="#45A85A", bad="#E0705A", neutral="#9C8F82", minimum="#3A2C24", maximum="#CC7838"),
+        fonts={"title": ("Segoe UI Semibold", 12, "#F1E7DA"), "header": ("Segoe UI Semibold", 11, "#F1E7DA"),
+               "label": ("Segoe UI", 10, "#D9CBBB"), "callout": ("Segoe UI Semibold", 24, "#F6EEE4"),
+               "dataTitle": ("Segoe UI", 10, "#B5A493"), "smallLabel": ("Segoe UI", 9, "#D9CBBB")}),
+}
+D = DESIGNS["light"]
+R = D["report"]
 NAV_LABELS = {"Products and Customers": "Products", "Orders and Data Quality": "Orders & Quality"}
 # rail shape and buttons: no container chrome (the theme gives every visual a title, divider and rounded border).
 # Fill and text stay per visual: buttons and shapes keep them per state, and theme defaults do not reach them.
 RAIL_THEME = [(f"{kind}.*.{prop}", value) for kind in ("actionButton", "shape") for prop, value in [
     ("title.show", "false"), ("divider.show", "false"), ("border.show", "false"), ("background.show", "false"),
     ("padding.top", "0"), ("padding.bottom", "0"), ("padding.left", "0"), ("padding.right", "0")]]
+
+
+def base_colors(theme, line, callout):
+    """Colours the sqlbi base theme fixes as literals (cards, tables, axes, legends), set from the design instead."""
+    text, muted, surface, alt = theme["foreground"], theme["secondary"], theme["background"], theme["background_light"]
+    props = [("card.*.labels.color", callout), ("card.*.categoryLabels.color", muted),
+             ("*.*.categoryAxis.labelColor", muted), ("*.*.valueAxis.labelColor", muted),
+             ("*.*.valueAxis.gridlineColor", line), ("*.*.categoryAxis.gridlineColor", line),
+             ("*.*.legend.labelColor", text), ("*.*.labels.color", text), ("*.*.divider.color", line)]
+    for table in ("tableEx", "pivotTable"):
+        props += [(f"{table}.*.{prop}", value) for prop, value in [
+            ("columnHeaders.backColor", alt), ("columnHeaders.fontColor", text), ("columnHeaders.outlineColor", line),
+            ("values.backColorPrimary", surface), ("values.backColorSecondary", alt),
+            ("values.fontColorPrimary", text), ("values.fontColorSecondary", text), ("values.outlineColor", line),
+            ("total.backColor", alt), ("total.fontColor", text), ("total.outlineColor", line),
+            ("grid.gridHorizontalColor", line), ("grid.gridVerticalColor", line), ("grid.outlineColor", line)]]
+    props += [(f"pivotTable.*.rowHeaders.{prop}", value) for prop, value in
+              [("backColor", alt), ("fontColor", text), ("outlineColor", line)]]
+    props += [(f"pivotTable.*.{totals}.{prop}", value) for totals in ("subTotals", "rowTotal", "columnTotal")
+              for prop, value in [("backColor", alt), ("fontColor", text)]]
+    return props
 
 
 def pbir(*args):
@@ -189,7 +230,7 @@ def header(page, title):
     ]
 
 
-def button(path, text, size, color, bold=False, fill=ESPRESSO):
+def button(path, text, size, color, fill, bold=False):
     for prop, value in [("text.show", "true"), ("text.text", text), ("text.fontSize", str(size)), ("text.fontColor", color),
                         ("text.bold", "true" if bold else "false"), ("text.horizontalAlignment", "left"),
                         ("text.leftMargin", "10"), ("icon.show", "false"), ("outline.show", "false"),
@@ -199,28 +240,28 @@ def button(path, text, size, color, bold=False, fill=ESPRESSO):
 
 def style_page(page, page_ids):
     rail = vpath(page, "rail")
-    for prop, value in [("fill.show", "true"), ("fill.fillColor", ESPRESSO), ("fill.transparency", "0"), ("outline.show", "false")]:
+    for prop, value in [("fill.show", "true"), ("fill.fillColor", D["rail"]), ("fill.transparency", "0"), ("outline.show", "false")]:
         pbir("set", f"{rail}.{prop}", "--value", value)
     pbir("visuals", "z-order", rail, "--back")
-    button(vpath(page, "brand"), "Velmora", 16, CREAM, bold=True)
-    button(vpath(page, "brandNote"), "Coffee Roasters", 9, "#CDBBA7")
+    button(vpath(page, "brand"), "Velmora", 16, D["brand"], D["rail"], bold=True)
+    button(vpath(page, "brandNote"), "Coffee Roasters", 9, D["brand_note"], D["rail"])
     for i, target in enumerate(PAGES):
         path = vpath(page, f"nav{i}")
         active = target == page
-        button(path, NAV_LABELS.get(target, target), 10, "#FFFFFF" if active else "#E9DCCB", bold=active,
-               fill=CARAMEL if active else ESPRESSO)
+        button(path, NAV_LABELS.get(target, target), 10, D["nav_active_text"] if active else D["nav_text"],
+               D["nav_active_fill"] if active else D["rail"], bold=active)
         # Power BI navigates by page id, not by display name
         pbir("visuals", "action", path, "--type", "PageNavigation", "--target", page_ids[target])
         pbir("visuals", "general", path, "--altText", f"Go to the {target} page")
     for name in ("filterContext", "dataStatus"):   # header text lines: small value, no label, no box
         pbir("set", f"{vpath(page, name)}.labels.fontSize", "--value", "10" if name == "dataStatus" else "11")
-        pbir("set", f"{vpath(page, name)}.labels.color", "--value", "#7A6A5E" if name == "dataStatus" else ESPRESSO)
+        pbir("set", f"{vpath(page, name)}.labels.color", "--value", D["header_note"] if name == "dataStatus" else D["header_text"])
         pbir("set", f"{vpath(page, name)}.categoryLabels.show", "--value", "false")
         pbir("visuals", "padding", vpath(page, name), "--top", "0", "--bottom", "0", "--left", "4", "--right", "4")
         pbir("visuals", "background", vpath(page, name), "--transparency", "100")
         pbir("visuals", "border", vpath(page, name), "--no-show")
-    pbir("pages", "background", f"{R}/{page}.Page", "--color", CREAM, "--transparency", "0")
-    pbir("pages", "wallpaper", f"{R}/{page}.Page", "--color", "#EFE6DA", "--transparency", "0")
+    pbir("pages", "background", f"{R}/{page}.Page", "--color", D["page"], "--transparency", "0")
+    pbir("pages", "wallpaper", f"{R}/{page}.Page", "--color", D["wallpaper"], "--transparency", "0")
 
 
 def visuals_on(page):
@@ -233,8 +274,15 @@ def vpath(page, name):
 
 
 def main():
+    global D, R
+    parser = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
+    parser.add_argument("--design", choices=list(DESIGNS), default="light")
+    D = DESIGNS[parser.parse_args().design]
+    R = D["report"]
+    THEME, FONTS = D["theme"], D["fonts"]
+
     shutil.rmtree(ROOT / R, ignore_errors=True)
-    (ROOT / "VelmoraSales.pbip").unlink(missing_ok=True)
+    (ROOT / R.replace(".Report", ".pbip")).unlink(missing_ok=True)
     pbir("new", "report", R, "--thick", "--no-title")
     pbir("report", "rebind", R, "--local", "../VelmoraSales.SemanticModel")
     pbir("pages", "rename", f"{R}/Page 1.Page", "--to", "Overview", "-f")
@@ -242,10 +290,14 @@ def main():
          "--background-light", THEME["background_light"], "--foreground", THEME["foreground"],
          "--foreground-neutral-secondary", THEME["secondary"], "--table-accent", THEME["table_accent"], "--good", THEME["good"],
          "--bad", THEME["bad"], "--neutral", THEME["neutral"], "--minimum", THEME["minimum"], "--maximum", THEME["maximum"])
-    pbir("theme", "rename", R, "Velmora Roast")
+    pbir("theme", "rename", R, D["theme_name"])
     for text_class, (face, size, color) in FONTS.items():
         pbir("theme", "set-fonts", R, text_class, "--font-face", face, "--font-size", str(size), "--color", color)
-    for prop, value in [("*.*.dropShadow.show", "false"), ("*.*.border.show", "true"), ("*.*.border.color", "#E6DACB"),
+    # the sqlbi base theme fixes white visual backgrounds and a grey canvas; both follow the design instead
+    pbir("theme", "background", R, "--clear")
+    for prop, value in [("*.*.background.color", THEME["background"]), ("*.*.background.transparency", "0"),
+                        ("page.*.background.color", D["page"]), ("page.*.background.transparency", "0"),
+                        ("*.*.dropShadow.show", "false"), ("*.*.border.show", "true"), ("*.*.border.color", D["border"]),
                         ("*.*.border.radius", "8"),
                         ("*.*.dataPoint.fillTransparency", "0"), ("*.*.dataPoint.borderShow", "false"),   # solid marks
                         ("card.*.labels.fontSize", "24"), ("card.*.categoryLabels.fontSize", "10"),
@@ -254,8 +306,11 @@ def main():
                         ("pivotTable.*.values.fontSize", "10"), ("pivotTable.*.columnHeaders.fontSize", "10"),
                         ("pivotTable.*.rowHeaders.fontSize", "10"), ("pivotTable.*.total.fontSize", "10")]:
         pbir("theme", "set-formatting", R, prop, "--value", value)
-    for prop, value in RAIL_THEME:
+    for prop, value in RAIL_THEME + base_colors(THEME, D["border"], FONTS["callout"][2]):
         pbir("theme", "set-formatting", R, prop, "--value", value)
+    for text_class in ("largeTitle", "boldLabel", "largeLabel", "largeLightLabel", "lightLabel", "semiboldLabel",
+                       "smallDataLabel", "smallLightLabel"):
+        pbir("theme", "set-fonts", R, text_class, "--color", THEME["foreground"])
     for page in list(PAGES)[1:]:
         pbir("add", "page", f"{R}/{page}.Page", "-n", page)
 

@@ -6,6 +6,8 @@ of the object path, so running the script again gives identical files. Validate 
 powerbi/validate_model.ps1.
 
 Usage: python powerbi/generate_model.py [--budget-file <path to the budget workbook>]
+Without --budget-file the parameter gets a placeholder path, so the committed model holds no local path;
+build.ps1 passes the workbook path of the clone.
 """
 import argparse
 import textwrap
@@ -558,7 +560,7 @@ def write(path, text):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
-    parser.add_argument("--budget-file", default=str(REPO / "data" / "generated" / "budget" / "Velmora_Budget_FY2023-2025.xlsx"))
+    parser.add_argument("--budget-file", default=r"C:\path\to\sales-revenue-analytics\data\generated\budget\Velmora_Budget_FY2023-2025.xlsx")
     args = parser.parse_args()
 
     definition = MODEL / "definition"
