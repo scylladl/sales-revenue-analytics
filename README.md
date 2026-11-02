@@ -10,7 +10,7 @@ finance budget, and why the margin fell.
 
 Built with **SQL Server (T-SQL)**, **Power BI (PBIP: TMDL + PBIR)**, **Power Query**, **Python** and PowerShell.
 
-![Overview page in Power BI Desktop](docs/screenshots/01-overview.png)
+![Tour of the Power BI report: the six pages in the Velmora Roast design, then in Velmora Dark Roast](docs/screenshots/sales-tour.gif)
 
 ## In 30 seconds
 
