@@ -49,7 +49,8 @@ SELECT (SELECT COUNT(*) FROM dw.FactSales) AS SalesRows,
                                      OriginalInvoiceDate, OrderDate, CustomerKey, ProductKey, ChannelCode, RegionCode,
                                      CategoryCode, CampaignCode, ReturnReason, Quantity, UnitListPrice, DiscountPct,
                                      GrossSales, DiscountAmount, ReturnAmount, NetRevenue, UnitCost, Cogs,
-                                     IsCostCarriedForward, IsQuantityCapped, IsInvoiceBeforeOrder))
+                                     IsCostCarriedForward, IsQuantityCapped, IsInvoiceBeforeOrder, IsPolicyChecked,
+                                     DiscountAbovePolicy, PromotionPeriod))
         FROM dw.FactSales) AS SalesChecksum,
        (SELECT COUNT(*) FROM dw.FactOrderLine) AS OrderLineRows,
        (SELECT CHECKSUM_AGG(CHECKSUM(OrderId, LineNumber, OrderDate, OrderStatus, CancelledDate, InvoiceDate, CustomerKey,

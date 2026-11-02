@@ -80,6 +80,13 @@ CREATE TABLE dw.FactSales (
     IsCostCarriedForward  bit            NOT NULL,   -- no standard cost for the month; latest earlier cost used
     IsQuantityCapped      bit            NOT NULL,   -- return quantity above what was invoiced; capped
     IsInvoiceBeforeOrder  bit            NOT NULL,   -- invoice dated before its order; date kept
+    -- CR-01: invoice lines of orders without a campaign (campaigns add discount on top of the contract), free
+    -- samples excluded, are checked against the contract maximum of the customer's channel and segment
+    IsPolicyChecked       bit            NOT NULL,
+    DiscountAbovePolicy   decimal(14,2)  NOT NULL,   -- gross sales x (line discount % - contract maximum %)
+    -- CR-03: 'Promotion' inside a ref.Promotion window for the line's channel and category, 'Rest of month' on
+    -- the other days of that month, NULL elsewhere; by order date
+    PromotionPeriod       varchar(13)    NULL,
     CONSTRAINT PK_FactSales PRIMARY KEY (DocumentId, DocumentLine)
 );
 

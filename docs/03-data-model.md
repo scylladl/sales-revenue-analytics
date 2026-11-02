@@ -20,7 +20,7 @@ flowchart LR
 | Schema | Content | Written by |
 |---|---|---|
 | `src` | ERP exports: products, customers, price list, monthly standard cost, orders and lines, invoices, credit notes and lines. Every row has a `ModifiedAt` timestamp. | `database/load_source_data.py` (here); the ERP extraction in a real deployment |
-| `ref` | Channels, regions (plus `UNK`), categories (with the restockable flag of rule R5), contract discount policy by channel and segment | `database/01_reference_tables.sql` |
+| `ref` | Channels, regions (plus `UNK`), categories (with the restockable flag of rule R5), contract discount policy by channel and segment (R9), promotion calendar (R11) | `database/01_reference_tables.sql` |
 | `dw` | Star schema below | `etl.usp_LoadSales` |
 | `etl` | Watermark per source table, run log | `etl.usp_LoadSales` |
 | `dq` | Check results and the views that list affected rows | `dq.usp_RunChecks` |
@@ -55,6 +55,9 @@ relationships.
 | `ReturnAmount` | 0 | returned units × list price × (1 − discount %) |
 | `NetRevenue` | gross − discount | − return amount |
 | `Cogs` | units × standard cost of the invoice month | − units × that cost for restockable categories (accessories, equipment); 0 for coffee, which is written off |
+| `IsPolicyChecked` | 1 when the order has no campaign and the line is not a free sample (R9) | 0 |
+| `DiscountAbovePolicy` | gross × (line discount − contract maximum of the segment), on checked lines (R9) | 0 |
+| `PromotionPeriod` | `Promotion` inside a promotion window for the line's channel and category, `Rest of month` on the other days of that month, empty elsewhere; by order date (R11) | same as the invoice line |
 
 ## Incremental load (`etl.usp_LoadSales`)
 
@@ -72,6 +75,8 @@ differs, delete when the source no longer has the row.
   order no longer exists. It also trims the calendar to the source years.
 - **Assumption**: the ERP cancels or deactivates orders, customers and products; it never hard-deletes them.
   An incremental run would not notice a hard delete; a full reload would.
+- **Reference changes**: `ref` tables have no timestamps; a change to the discount policy or the promotion
+  calendar needs a full reload.
 - **Limitation**: the watermark trusts the ERP's `ModifiedAt`. A transaction committed late with an older
   timestamp would be missed by the incremental run until the next full reload.
 
@@ -97,7 +102,7 @@ negative net revenue.
 
 ## Semantic model
 
-Import mode, 13 tables, 17 single-direction relationships, 43 explicit measures in `_Measures`, no calculated
+Import mode, 14 tables, 17 single-direction relationships, 51 explicit measures in `_Measures`, no calculated
 columns. Written by `powerbi/generate_model.py` and checked offline by `powerbi/validate_model.ps1`.
 
 | Table | Source |
@@ -106,6 +111,7 @@ columns. Written by `powerbi/generate_model.py` and checked offline by `powerbi/
 | Sales, Order Line | `rpt.vw_Sales`, `rpt.vw_OrderLine` |
 | Budget, Budget Workbook Total | The finance workbook, through the staging query `Budget Sheets` |
 | Data Quality Check, Processing Status | `rpt` views |
+| Margin Bridge Step | Six fixed rows in Power Query: the axis of the margin bridge waterfall (R10) |
 
 `Sales[Original Invoice Date]` has an inactive relationship to Date, used by `Return Rate %` with
 `USERELATIONSHIP`. Budget measures return blank when customers, products or sales attributes are filtered,

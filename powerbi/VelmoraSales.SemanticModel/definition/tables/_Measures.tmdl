@@ -249,28 +249,143 @@ table _Measures
 		displayFolder: 5. Time Comparison
 		lineageTag: 8c93c73c-d83c-5696-b9b1-9b64063ec507
 
+	/// Discount granted above the contract maximum of the customer's segment, on invoice lines of orders without a campaign (free samples excluded). CR-01.
+	measure 'Discount Above Policy' = SUM ( 'Sales'[Discount Above Policy] )
+		formatString: € #,##0
+		displayFolder: 6. Profit Levers
+		lineageTag: adc15a98-a2cd-5bcc-9098-dd418172ad68
+
+	/// Checked invoice lines with a discount above the contract maximum, as a share of all checked lines. CR-01.
+	measure 'Lines Above Policy %' =
+			VAR AboveLines = CALCULATE ( COUNTROWS ( 'Sales' ), 'Sales'[Discount Above Policy] > 0 ) + 0   -- 0 %, not blank, when no line is above
+			VAR CheckedLines = CALCULATE ( COUNTROWS ( 'Sales' ), 'Sales'[Is Policy Checked] = TRUE () )
+			RETURN
+			    DIVIDE ( AboveLines, CheckedLines )
+		formatString: 0.0%
+		displayFolder: 6. Profit Levers
+		lineageTag: 8f373cc1-d186-55e4-96ea-1b5367afe28e
+
+	/// Gross profit of lines ordered inside a promotion window, divided by the days with such orders. CR-03.
+	measure 'Gross Profit per Promotion Day' =
+			DIVIDE (
+			    CALCULATE ( [Gross Profit], 'Sales'[Promotion Period] = "Promotion" ),
+			    CALCULATE ( DISTINCTCOUNT ( 'Sales'[Order Date] ), 'Sales'[Promotion Period] = "Promotion" )
+			)
+		formatString: € #,##0
+		displayFolder: 6. Profit Levers
+		lineageTag: 82888916-c898-5e27-bae7-532d45838a7a
+
+	/// Same for the other days of the promotion months, same channel and category: the comparison base. CR-03.
+	measure 'Gross Profit per Ordinary Day' =
+			DIVIDE (
+			    CALCULATE ( [Gross Profit], 'Sales'[Promotion Period] = "Rest of month" ),
+			    CALCULATE ( DISTINCTCOUNT ( 'Sales'[Order Date] ), 'Sales'[Promotion Period] = "Rest of month" )
+			)
+		formatString: € #,##0
+		displayFolder: 6. Profit Levers
+		lineageTag: 6620fe23-54f3-5f14-a506-f62eb3432851
+
+	/// Gross profit divided by the days with orders in context; with 'Sales'[Promotion Period] it compares promotion and ordinary days. CR-03.
+	measure 'Gross Profit per Order Day' = DIVIDE ( [Gross Profit], DISTINCTCOUNT ( 'Sales'[Order Date] ) )
+		formatString: € #,##0
+		displayFolder: 6. Profit Levers
+		lineageTag: d0eb138c-fe84-529a-97b6-e938b7624576
+
+	/// Units sold divided by the days with orders in context. CR-03.
+	measure 'Units per Order Day' = DIVIDE ( [Units Sold], CALCULATE ( DISTINCTCOUNT ( 'Sales'[Order Date] ), KEEPFILTERS ( 'Sales'[Line Type] = "Invoice" ) ) )
+		formatString: #,##0
+		displayFolder: 6. Profit Levers
+		lineageTag: 7add0e79-b90b-5a16-aec9-4693011c4b7c
+
+	/// Gross profit per promotion day as a share of gross profit per ordinary day; below 100 % a promotion day earns less than an ordinary day. CR-03.
+	measure 'Promotion Profit Ratio %' = DIVIDE ( [Gross Profit per Promotion Day], [Gross Profit per Ordinary Day] )
+		formatString: 0.0%
+		displayFolder: 6. Profit Levers
+		lineageTag: cf8c729b-1a2e-52f4-81cf-ea619c39a3e3
+
+	/// Change of gross margin % against the previous year, split by product x channel into mix, standard cost, list price, discount rate, new and discontinued products, and returns (CR-02; same method as analysis/margin_bridge.sql). With 'Margin Bridge Step'[Step] on a waterfall, the total is the change in percentage points.
+	measure 'Margin Bridge (pp)' =
+			VAR StepNumber = SELECTEDVALUE ( 'Margin Bridge Step'[Step Order] )
+			-- amounts converted to DOUBLE: Currency keeps four decimals and would round the small price and discount terms
+			VAR BridgeCells =
+			    FILTER (
+			        ADDCOLUMNS (
+			            SUMMARIZE ( 'Sales', 'Sales'[Product Key], 'Sales'[Channel Code] ),
+			            "@UnitsB", CALCULATE ( SUM ( 'Sales'[Quantity] ), 'Sales'[Line Type] = "Invoice" ),
+			            "@GrossB", CONVERT ( CALCULATE ( SUM ( 'Sales'[Gross Sales] ) ), DOUBLE ),
+			            "@DiscB", CONVERT ( CALCULATE ( SUM ( 'Sales'[Discount Amount] ) ), DOUBLE ),
+			            "@CogsB", CONVERT ( CALCULATE ( SUM ( 'Sales'[COGS] ), 'Sales'[Line Type] = "Invoice" ), DOUBLE ),
+			            "@UnitsA", CALCULATE ( SUM ( 'Sales'[Quantity] ), 'Sales'[Line Type] = "Invoice", SAMEPERIODLASTYEAR ( 'Date'[Date] ) ),
+			            "@GrossA", CONVERT ( CALCULATE ( SUM ( 'Sales'[Gross Sales] ), SAMEPERIODLASTYEAR ( 'Date'[Date] ) ), DOUBLE ),
+			            "@DiscA", CONVERT ( CALCULATE ( SUM ( 'Sales'[Discount Amount] ), SAMEPERIODLASTYEAR ( 'Date'[Date] ) ), DOUBLE ),
+			            "@CogsA", CONVERT ( CALCULATE ( SUM ( 'Sales'[COGS] ), 'Sales'[Line Type] = "Invoice", SAMEPERIODLASTYEAR ( 'Date'[Date] ) ), DOUBLE )
+			        ),
+			        [@GrossA] - [@DiscA] > 0 && [@GrossB] - [@DiscB] > 0
+			    )
+			VAR NetTotalA = SUMX ( BridgeCells, [@GrossA] - [@DiscA] )
+			VAR NetTotalB = SUMX ( BridgeCells, [@GrossB] - [@DiscB] )
+			VAR Detail =
+			    ADDCOLUMNS (
+			        BridgeCells,
+			        "@ShareA", ( [@GrossA] - [@DiscA] ) / NetTotalA,
+			        "@ShareB", ( [@GrossB] - [@DiscB] ) / NetTotalB,
+			        "@MarginA", 1 - [@CogsA] / ( [@GrossA] - [@DiscA] ),
+			        "@PriceA", ( [@GrossA] - [@DiscA] ) / [@UnitsA],
+			        "@PriceB", ( [@GrossB] - [@DiscB] ) / [@UnitsB],
+			        "@CostA", [@CogsA] / [@UnitsA],
+			        "@CostB", [@CogsB] / [@UnitsB],
+			        "@PriceAtOldDiscount", [@GrossB] / [@UnitsB] * ( 1 - [@DiscA] / [@GrossA] )
+			    )
+			VAR MixPart = SUMX ( Detail, ( [@ShareB] - [@ShareA] ) * [@MarginA] )
+			VAR CostPart = SUMX ( Detail, [@ShareB] * ( [@CostA] - [@CostB] ) / [@PriceA] )
+			VAR ListPart = SUMX ( Detail, [@ShareB] * [@CostB] * ( 1 / [@PriceA] - 1 / [@PriceAtOldDiscount] ) )
+			VAR DiscountPart = SUMX ( Detail, [@ShareB] * [@CostB] * ( 1 / [@PriceAtOldDiscount] - 1 / [@PriceB] ) )
+			VAR InvoiceMarginB = 1 - DIVIDE ( CALCULATE ( SUM ( 'Sales'[COGS] ), 'Sales'[Line Type] = "Invoice" ), [Net Sales Before Returns] )
+			VAR InvoiceMarginA =
+			    1 - DIVIDE (
+			        CALCULATE ( SUM ( 'Sales'[COGS] ), 'Sales'[Line Type] = "Invoice", SAMEPERIODLASTYEAR ( 'Date'[Date] ) ),
+			        CALCULATE ( [Net Sales Before Returns], SAMEPERIODLASTYEAR ( 'Date'[Date] ) )
+			    )
+			VAR MarginB = [Gross Margin %]
+			VAR MarginA = [Gross Margin % PY]
+			VAR StepValue =
+			    SWITCH (
+			        StepNumber,
+			        1, MixPart,
+			        2, CostPart,
+			        3, ListPart,
+			        4, DiscountPart,
+			        5, ( InvoiceMarginB - InvoiceMarginA ) - ( MixPart + CostPart + ListPart + DiscountPart ),
+			        6, ( MarginB - InvoiceMarginB ) - ( MarginA - InvoiceMarginA )
+			    )
+			RETURN
+			    IF ( NOT ISBLANK ( MarginA ) && NOT ISBLANK ( MarginB ), StepValue * 100 )
+		formatString: +0.00;-0.00;0.00
+		displayFolder: 6. Profit Levers
+		lineageTag: 4e77ec92-f8f9-5362-9774-3cf01c299938
+
 	/// Data quality checks that failed in the last run.
 	measure 'Failed Checks' = CALCULATE ( COUNTROWS ( 'Data Quality Check' ), 'Data Quality Check'[Result] = "Fail" ) + 0
 		formatString: #,##0
-		displayFolder: 6. Data Quality
+		displayFolder: 7. Data Quality
 		lineageTag: 3e02f5d0-3ab1-588a-8499-c4c85ef2916e
 
 	/// Sales lines costed with an earlier month's standard cost (SRC-02).
 	measure 'Lines With Carried-Forward Cost' = CALCULATE ( COUNTROWS ( 'Sales' ), 'Sales'[Is Cost Carried Forward] = TRUE () ) + 0
 		formatString: #,##0
-		displayFolder: 6. Data Quality
+		displayFolder: 7. Data Quality
 		lineageTag: 225c2285-58d2-5f95-ac55-98f1033a6d16
 
 	/// Net revenue of customers exported without a region (SRC-05); outside every regional budget.
 	measure 'Net Revenue Unknown Region' = CALCULATE ( [Net Revenue], 'Region'[Region Code] = "UNK" )
 		formatString: € #,##0
-		displayFolder: 6. Data Quality
+		displayFolder: 7. Data Quality
 		lineageTag: 64e2c04e-a516-58eb-8fbb-c4bac3f7e996
 
 	/// Budget rows whose category name in the workbook matches no category.
 	measure 'Unmapped Budget Rows' = COUNTROWS ( FILTER ( 'Budget', ISBLANK ( 'Budget'[Category Code] ) ) ) + 0
 		formatString: #,##0
-		displayFolder: 6. Data Quality
+		displayFolder: 7. Data Quality
 		lineageTag: a85b8fd9-9f44-5842-a80c-60bbef627d52
 
 	/// Net revenue on the workbook Total rows minus the prepared budget, all years. Zero when Power Query kept every budget row.
@@ -281,7 +396,7 @@ table _Measures
 			RETURN
 			    WorkbookTotal - Prepared
 		formatString: € #,##0
-		displayFolder: 6. Data Quality
+		displayFolder: 7. Data Quality
 		lineageTag: c24529a3-24e6-5a94-b6a5-129aee3c45b5
 
 	/// Text for every page: data date, load time and the simulated-data notice.
@@ -294,7 +409,7 @@ table _Measures
 			        & "  |  Loaded " & FORMAT ( LoadedAt, "dd mmm yyyy hh:nn" )
 			        & IF ( LastRun = "Failed", "  |  Warning: the latest load failed", "" )
 			        & "  |  Simulated data" 
-		displayFolder: 7. Report
+		displayFolder: 8. Report
 		lineageTag: 9911cc3d-7543-5531-9df2-f465abaf006f
 
 	/// Text under every page title: the year, channel, region and category in context.
@@ -309,7 +424,7 @@ table _Measures
 			    IF ( ISFILTERED ( 'Category'[Category] ), CONCATENATEX ( VALUES ( 'Category'[Category] ), 'Category'[Category], ", ", 'Category'[Category] ), "All categories" )
 			RETURN
 			    YearText & "  ·  " & ChannelText & "  ·  " & RegionText & "  ·  " & CategoryText
-		displayFolder: 7. Report
+		displayFolder: 8. Report
 		lineageTag: be8dea6e-a302-57fa-9402-e12bb8a91f41
 
 	column Value

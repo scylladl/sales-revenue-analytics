@@ -41,6 +41,17 @@ table Sales
 
 		annotation SummarizationSetBy = Explicit
 
+	/// Date the order was placed; counts promotion days (CR-03).
+	column 'Order Date'
+		dataType: dateTime
+		isHidden
+		formatString: dd mmm yyyy
+		lineageTag: baa8dd0c-6af5-5cf6-b6f4-c438fc082276
+		summarizeBy: none
+		sourceColumn: OrderDate
+
+		annotation SummarizationSetBy = Explicit
+
 	column 'Customer Key'
 		dataType: int64
 		isHidden
@@ -86,7 +97,7 @@ table Sales
 
 		annotation SummarizationSetBy = Explicit
 
-	/// E-commerce campaign (Black Friday, Christmas, summer) active on the order.
+	/// Campaign on the order: e-commerce campaigns (Black Friday, Christmas, summer) and retail promotions.
 	column Campaign
 		dataType: string
 		lineageTag: d084f652-5c7a-54af-98a3-641e050101fd
@@ -199,6 +210,36 @@ table Sales
 
 		annotation SummarizationSetBy = Explicit
 
+	/// Invoice line checked against the contract discount policy: no campaign on the order, not a free sample (CR-01).
+	column 'Is Policy Checked'
+		dataType: boolean
+		isHidden
+		lineageTag: 6fd98982-0137-54c7-8836-77561e51762e
+		summarizeBy: none
+		sourceColumn: IsPolicyChecked
+
+		annotation SummarizationSetBy = Explicit
+
+	/// Gross sales x (line discount % - contract maximum % of the customer's segment), on checked lines (CR-01).
+	column 'Discount Above Policy'
+		dataType: decimal
+		isHidden
+		formatString: #,##0.00
+		lineageTag: 65cb3150-17f8-5c0b-824f-54d7988abeee
+		summarizeBy: none
+		sourceColumn: DiscountAbovePolicy
+
+		annotation SummarizationSetBy = Explicit
+
+	/// Promotion: ordered inside a promotion window for the line's channel and category. Rest of month: the other days of that month. Blank elsewhere (CR-03).
+	column 'Promotion Period'
+		dataType: string
+		lineageTag: b5c230d4-be9c-5db1-940b-ae22c2ce2c98
+		summarizeBy: none
+		sourceColumn: PromotionPeriod
+
+		annotation SummarizationSetBy = Explicit
+
 	partition Sales = m
 		mode: import
 		queryGroup: Facts
@@ -206,7 +247,7 @@ table Sales
 				let
 				    Source = Sql.Database ( Server, Database ),
 				    Data = Source{[Schema = "rpt", Item = "vw_Sales"]}[Data],
-				    Typed = Table.TransformColumnTypes ( Data, {{"CustomerKey", Int64.Type}, {"ProductKey", Int64.Type}, {"Quantity", Int64.Type}, {"DiscountPct", type number}, {"GrossSales", Currency.Type}, {"DiscountAmount", Currency.Type}, {"ReturnAmount", Currency.Type}, {"NetRevenue", Currency.Type}, {"Cogs", Currency.Type}} )
+				    Typed = Table.TransformColumnTypes ( Data, {{"CustomerKey", Int64.Type}, {"ProductKey", Int64.Type}, {"Quantity", Int64.Type}, {"DiscountPct", type number}, {"GrossSales", Currency.Type}, {"DiscountAmount", Currency.Type}, {"ReturnAmount", Currency.Type}, {"NetRevenue", Currency.Type}, {"Cogs", Currency.Type}, {"DiscountAbovePolicy", Currency.Type}} )
 				in
 				    Typed
 

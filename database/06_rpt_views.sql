@@ -30,9 +30,10 @@ CREATE OR ALTER VIEW rpt.vw_Product AS
 SELECT ProductKey, ProductId, ProductName, PackSize, LaunchDate FROM dw.DimProduct;
 GO
 CREATE OR ALTER VIEW rpt.vw_Sales AS
-SELECT OrderId, LineType, PostingDate, OriginalInvoiceDate, CustomerKey, ProductKey, ChannelCode, RegionCode,
+SELECT OrderId, LineType, PostingDate, OriginalInvoiceDate, OrderDate, CustomerKey, ProductKey, ChannelCode, RegionCode,
        CategoryCode, CampaignCode, ReturnReason, Quantity, DiscountPct, GrossSales, DiscountAmount, ReturnAmount,
-       NetRevenue, Cogs, IsCostCarriedForward, IsQuantityCapped, IsInvoiceBeforeOrder
+       NetRevenue, Cogs, IsCostCarriedForward, IsQuantityCapped, IsInvoiceBeforeOrder, IsPolicyChecked,
+       DiscountAbovePolicy, PromotionPeriod
 FROM dw.FactSales;
 GO
 CREATE OR ALTER VIEW rpt.vw_OrderLine AS

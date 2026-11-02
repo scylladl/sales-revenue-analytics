@@ -14,11 +14,11 @@ percentage points, at product × channel level:
 
 | Part | pp |
 |---|---|
-| Gross margin 2023 | 48.89 |
+| Gross margin 2023 | 48.90 |
 | Mix (product × channel) | +0.60 |
 | Standard cost | −10.31 |
 | List price | +2.83 |
-| Discount rate | +0.06 |
+| Discount rate | +0.05 |
 | New and discontinued products | −0.05 |
 | Returns | −0.03 |
 | Gross margin 2025 | 41.99 |
@@ -85,6 +85,10 @@ is outside the data.
 
 **Recommendation for marketing:** reduce the promotional discount or limit it to SKUs whose margin can absorb it.
 
+The table counts invoice lines by order year. The report KPIs of CR-03 follow the report's posting-date filter and
+include returns, so for 2025 they show €764 per promotion day and €1,698 per ordinary day (45.0 %) instead of
+€783 and €1,739 (45.0 %).
+
 ## 6. E-commerce sells more equipment, with lower margin and more returns
 
 | Sale year | Equipment share of e-commerce sales | Equipment margin | Other e-commerce margin | Equipment return rate |
@@ -96,12 +100,15 @@ is outside the data.
 Equipment returns go back to stock (cost reversed), so their cost is the lost sale and handling, not written-off
 goods. Worth monitoring; not a cause of the company margin fall (finding 1).
 
-## Proposed report changes (pending client approval)
+## Report changes (approved 2026-11-02)
 
-The approved requirements are not changed until the client agrees (`docs/02-change-log.md`). Proposals:
+The proposals below were presented to the client, approved and implemented as requirements version 1.1
+(`docs/02-change-log.md`). They are on the report page **Profit Levers**.
 
-| ID | Proposal | Why |
+| ID | Change | Why |
 |---|---|---|
-| CR-01 | Add the KPIs **Discount Above Policy** (€) and **Lines Above Policy %**, using `ref.DiscountPolicy`, to the Margin Drivers page | Makes finding 4 visible every month instead of in an ad hoc query |
-| CR-02 | Add a **margin bridge** (mix, cost, list price, discount, returns) between the selected year and the previous one | Answers business question 3 in the report itself |
-| CR-03 | Add **promotion gross profit per day** against ordinary days for Retail | Lets marketing judge each promotion window |
+| CR-01 | KPIs **Discount Above Policy** (€) and **Lines Above Policy %** (rule R9), by region and HoReCa tier | Makes finding 4 visible every month instead of in an ad hoc query |
+| CR-02 | **Margin bridge** waterfall from the previous year (rule R10), following the report filters | Answers business question 3 in the report itself |
+| CR-03 | **Gross profit per promotion day** against ordinary days (rule R11), from the promotion calendar | Lets marketing judge each promotion window |
+
+The figures of the KPIs match the analysis above; `docs/05-validation-results.md` lists the checks.

@@ -2,7 +2,8 @@
 
 > **SIMULATED SCENARIO.** Velmora Coffee Roasters S.L., its customers, data and every figure are fictional.
 
-Version 1.0, approved 2026-11-01 by the Chief Financial Officer (fictional sponsor).
+Version 1.1, 2026-11-02: version 1.0 (approved 2026-11-01 by the Chief Financial Officer, fictional sponsor) plus
+change requests CR-01 to CR-03 (`docs/02-change-log.md`).
 
 ## 1. The company
 
@@ -44,6 +45,9 @@ Gross sales, discounts, returns, net revenue, cost of goods sold (COGS), gross p
 attainment for net revenue and gross profit, orders, units, average order value by channel, discount rate,
 return rate, cancellations, month-over-month and year-over-year changes.
 
+Added in version 1.1: discount above the contract policy and share of lines above it (CR-01), gross margin bridge
+against the previous year (CR-02), gross profit per promotion day against ordinary days (CR-03).
+
 ## 6. Approved calculation rules
 
 | # | Topic | Rule |
@@ -56,6 +60,9 @@ return rate, cancellations, month-over-month and year-over-year changes.
 | R6 | Margin | Gross profit = net revenue − COGS. Gross margin % = gross profit ÷ net revenue. Freight and commissions are out of scope (version 2). |
 | R7 | Budget | Monthly by channel × region × category, for net revenue and gross profit. Delivered by finance as an **Excel workbook**, prepared in Power Query. |
 | R8 | Average order value | Net revenue ÷ invoiced orders, **always by channel**: business and consumer orders are never averaged together. |
+| R9 | Discount policy (CR-01) | The contract discount of each channel and customer segment has a maximum (`ref.DiscountPolicy`). Invoice lines of orders **without a campaign** are checked against it, free samples (100 % discount) excluded: campaigns and promotions add discount on top of the contract. Discount above policy = gross sales × (line discount − maximum). |
+| R10 | Margin bridge (CR-02) | The change of gross margin % against the previous year is split, by product × channel, into mix, standard cost, list price, discount rate, new and discontinued products, and returns; the parts add up to the change. |
+| R11 | Promotion profitability (CR-03) | Marketing's promotion calendar (`ref.Promotion`) names the channel, category and days of each promotion. A promotion day is compared with the other days of the same month for the same channel and category: gross profit per order day, by order date. |
 
 ## 7. Out of scope (version 2)
 

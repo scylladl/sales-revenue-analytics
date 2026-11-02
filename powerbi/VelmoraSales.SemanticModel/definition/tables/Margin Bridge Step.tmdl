@@ -1,0 +1,34 @@
+/// Axis of the gross margin bridge (CR-02): the parts of the change against the previous year.
+table 'Margin Bridge Step'
+	lineageTag: 8956fa4c-cf3a-5bed-af8d-f5c60343d503
+
+	column Step
+		dataType: string
+		lineageTag: 75566440-8e46-5a93-9edb-8b81f991fb73
+		summarizeBy: none
+		sourceColumn: Step
+		sortByColumn: 'Step Order'
+
+		annotation SummarizationSetBy = Explicit
+
+	column 'Step Order'
+		dataType: int64
+		isHidden
+		lineageTag: 829ce31b-7713-5a3c-b4c7-281b7c2e5c55
+		summarizeBy: none
+		sourceColumn: StepOrder
+
+		annotation SummarizationSetBy = Explicit
+
+	partition 'Margin Bridge Step' = m
+		mode: import
+		queryGroup: Support
+		source =
+				let
+				    Source = #table ( type table [Step = text, StepOrder = Int64.Type], {
+				        {"Mix", 1}, {"Standard cost", 2}, {"List price", 3}, {"Discount rate", 4},
+				        {"New and discontinued products", 5}, {"Returns", 6} } )
+				in
+				    Source
+
+	annotation PBI_ResultType = Table

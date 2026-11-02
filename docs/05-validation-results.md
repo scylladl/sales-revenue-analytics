@@ -10,8 +10,8 @@ What was tested, how, and what remains to be checked by hand. Runs of 2026-11-01
 | Acceptance criterion | Test | Result |
 |---|---|---|
 | AC-01 One command rebuilds everything | `build.ps1` from generated data to model files | Pass (see below) |
-| AC-02 Every KPI documented | `docs/04-kpi-dictionary.md` covers the 43 measures | Done |
-| AC-03 KPIs match independent SQL | `validation/validate_kpis.ps1`: 171 comparisons | 171 of 171 match |
+| AC-02 Every KPI documented | `docs/04-kpi-dictionary.md` covers the 51 measures | Done |
+| AC-03 KPIs match independent SQL | `validation/validate_kpis.ps1`: 231 comparisons | 231 of 231 match |
 | AC-04 Data quality checks pass | `dq.usp_RunChecks`: 10 checks | 10 of 10 pass |
 | AC-05 Safe to re-run; incremental = full reload | `tests/test_incremental_load.ps1`: 21 assertions | 21 of 21 pass |
 | AC-06 Actual vs budget at the budget grain | Budget measures by year, channel, region, category; reconciliation with the workbook | Pass |
@@ -27,11 +27,19 @@ files (`TECHNICAL_DECISIONS.md`, D-04).
 
 ## AC-03 SQL against Power BI
 
-`validation/kpi_source.sql` recalculates 14 KPIs straight from the `src` tables, applying the rules without dw or
-the load procedure. `validation/validate_kpis.ps1` evaluates the same measures in the model open in Power BI
-Desktop and compares them by year (2023 to 2025), for all channels and for each channel: 168 comparisons, plus the
-prepared budget against the workbook's Total rows for each year (3). Amounts must match to the cent and ratios to
-0.0001. All 171 match; details in `validation/kpi_comparison.csv`.
+`validation/kpi_source.sql` recalculates 18 KPIs straight from the `src` tables, applying the rules without dw or
+the load procedure (including the discount policy and promotion rules of version 1.1, from the `ref` tables).
+`validation/validate_kpis.ps1` evaluates the same measures in the model open in Power BI Desktop and compares them
+by year (2023 to 2025), for all channels and for each channel: 216 comparisons. It also compares the prepared
+budget with the workbook's Total rows for each year (3), and the six steps of the Margin Bridge (pp) measure with
+`analysis/margin_bridge.sql` for 2024 and 2025 (12). Amounts must match to the cent, ratios to 0.0001 and bridge
+steps to 0.0002 pp. All 231 match; details in `validation/kpi_comparison.csv`.
+
+Two defects were found this way and fixed before the comparison passed. The first version of the bridge measure
+summed Currency columns, which keep four decimals, so the list price step showed 2.73 pp instead of 2.77 pp; the
+amounts are now converted to DOUBLE. The SQL bridge itself used decimal division, whose scale reduction moved the
+parts by up to 0.006 pp; it now uses float. Lines Above Policy % returned blank instead of 0 % for channels with no
+line above policy.
 
 | 2025, all channels | SQL on src | Power BI |
 |---|---|---|
@@ -82,16 +90,19 @@ The source counts equal the defects the generator wrote (`data/generated/defects
 - After loading in Desktop, every measure and partition is in state Ready; row counts equal the dw tables;
   the budget has 2,808 rows (3 years × 12 months × 78 channel-region-category cells), Budget Workbook
   Difference is 0 and Unmapped Budget Rows is 0.
-- The five pages were rendered in Power BI Desktop and inspected from screenshots after every change.
+- The six pages were rendered in Power BI Desktop and inspected from screenshots after every change.
   Problems found that way and fixed: the year filter was written as text and never matched the integer year;
   month axes were sorted by value; the KPI visual showed December instead of the year (replaced by cards);
   the top-customers table grouped customers by name, merging different customers with the same name
-  (now grouped by customer id).
+  (now grouped by customer id). After the redesign: theme defaults gave the rail buttons a title divider and
+  border, and did not reach their fill and text (set per button); the combo chart drew the budget line with a
+  shaded area over the revenue columns (area shading switched off for every visual type).
 
 ## Not tested or pending manual validation
 
 - Interactions and cross-filtering were not exercised click by click; the screenshots show the default state
-  (year 2025, no other filter).
+  (year 2025, no other filter). The navigation buttons are configured with page ids but were not clicked in
+  Desktop.
 - The report was not published to the Power BI Service, and no gateway or schedule was configured (out of scope).
 - Accessibility (contrast, alt text, keyboard order) was not reviewed.
 - Performance was not measured beyond the load timings above; no claim is made about report speed.

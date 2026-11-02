@@ -27,7 +27,7 @@ catch {
 }
 
 # DAX keywords that parse in TMDL but break a measure when used as a variable name
-$reserved = "BEFORE|AFTER|TOP|START|END|ORDER|PARTITION|MATCHBY|WINDOW|INDEX|OFFSET|RANK|ROWNUMBER|ASC|DESC|DEFINE|EVALUATE|MEASURE|VAR|RETURN|TRUE|FALSE|NOT|IN"
+$reserved = "BEFORE|AFTER|TOP|CELLS|START|END|ORDER|PARTITION|MATCHBY|WINDOW|INDEX|OFFSET|RANK|ROWNUMBER|ASC|DESC|DEFINE|EVALUATE|MEASURE|VAR|RETURN|TRUE|FALSE|NOT|IN"
 $badVars = Get-ChildItem -Path $folder -Recurse -Filter *.tmdl |
     Select-String -Pattern "\bVAR\s+($reserved)\s*=" -CaseSensitive:$false
 if ($badVars) {

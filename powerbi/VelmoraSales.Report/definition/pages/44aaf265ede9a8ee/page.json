@@ -1,8 +1,0 @@
-{
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.1.0/schema.json",
-  "name": "44aaf265ede9a8ee",
-  "displayName": "Margin Drivers",
-  "width": 1280,
-  "height": 720,
-  "displayOption": "FitToPage"
-}

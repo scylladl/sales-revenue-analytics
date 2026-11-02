@@ -54,20 +54,6 @@
               "displayName": "Revenue Attainment %"
             },
             {
-              "queryRef": "_Measures.Gross Profit",
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Gross Profit"
-                }
-              },
-              "nativeQueryRef": "Gross Profit"
-            },
-            {
               "queryRef": "_Measures.Gross Profit Attainment %",
               "field": {
                 "Measure": {
@@ -120,7 +106,7 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Channels: revenue, profit and budget attainment'"
+                  "Value": "'Channels: revenue and budget attainment'"
                 }
               }
             }
@@ -143,10 +129,10 @@
     }
   },
   "position": {
-    "x": 24,
-    "y": 464,
-    "width": 608,
-    "height": 232,
+    "x": 184,
+    "y": 448,
+    "width": 528,
+    "height": 248,
     "z": 0,
     "tabOrder": 0
   },

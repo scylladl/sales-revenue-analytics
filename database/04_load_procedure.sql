@@ -13,6 +13,8 @@
     recorded in etl.LoadRun, failures included.
 
     Assumption: the ERP never hard-deletes orders, customers or products (it cancels or deactivates them).
+    Reference tables (ref) carry no timestamps: after a change to the discount policy or the promotion calendar,
+    run a full reload.
 */
 USE VelmoraSales;
 GO
@@ -143,7 +145,8 @@ BEGIN
                l.Quantity, l.UnitListPrice, l.DiscountPct, amount.GrossSales,
                CAST(ROUND(amount.GrossSales * l.DiscountPct / 100, 2) AS decimal(14,2)) AS DiscountAmount,
                cost.UnitCost,
-               CAST(IIF(cost.YearMonth < YEAR(i.InvoiceDate) * 100 + MONTH(i.InvoiceDate), 1, 0) AS bit) AS IsCostCarriedForward
+               CAST(IIF(cost.YearMonth < YEAR(i.InvoiceDate) * 100 + MONTH(i.InvoiceDate), 1, 0) AS bit) AS IsCostCarriedForward,
+               policy.MaxContractPct, promo.PromotionPeriod
         INTO #Line
         FROM #AffectedOrder AS a
         JOIN src.SalesOrder AS o ON o.OrderId = a.OrderId
@@ -157,7 +160,14 @@ BEGIN
                      FROM src.StandardCost AS sc
                      WHERE sc.ProductId = l.ProductId
                        AND sc.YearMonth <= YEAR(i.InvoiceDate) * 100 + MONTH(i.InvoiceDate)
-                     ORDER BY sc.YearMonth DESC) AS cost;
+                     ORDER BY sc.YearMonth DESC) AS cost
+        LEFT JOIN ref.DiscountPolicy AS policy ON policy.ChannelCode = c.ChannelCode AND policy.Segment = c.Segment
+        -- a month with a promotion for the line's channel and category: inside the window or on the other days
+        OUTER APPLY (SELECT TOP (1) CAST(IIF(o.OrderDate BETWEEN pr.StartDate AND pr.EndDate, 'Promotion', 'Rest of month') AS varchar(13)) AS PromotionPeriod
+                     FROM ref.Promotion AS pr
+                     WHERE pr.ChannelCode = o.ChannelCode AND pr.CategoryCode = p.CategoryCode
+                       AND DATEFROMPARTS(YEAR(pr.StartDate), MONTH(pr.StartDate), 1) = DATEFROMPARTS(YEAR(o.OrderDate), MONTH(o.OrderDate), 1)
+                     ORDER BY IIF(o.OrderDate BETWEEN pr.StartDate AND pr.EndDate, 0, 1)) AS promo;
 
         /* Sales rows: invoice lines and credit note lines (rules R1, R3, R4) */
 
@@ -174,7 +184,7 @@ BEGIN
             -- what was returned in total never exceeds what was invoiced on the line
             SELECT cr.*, ln.InvoiceId, ln.InvoiceDate, ln.OrderDate, ln.CustomerKey, ln.ProductKey, ln.ChannelCode,
                    ln.RegionCode, ln.CategoryCode, ln.CampaignCode, ln.IsRestockable, ln.UnitListPrice, ln.DiscountPct,
-                   ln.UnitCost, ln.IsCostCarriedForward,
+                   ln.UnitCost, ln.IsCostCarriedForward, ln.PromotionPeriod,
                    IIF(cr.CumulativeQuantity < ln.Quantity, cr.CumulativeQuantity, ln.Quantity)
                      - IIF(cr.CumulativeQuantity - cr.Quantity < ln.Quantity, cr.CumulativeQuantity - cr.Quantity, ln.Quantity)
                      AS ReturnedQuantity
@@ -187,7 +197,11 @@ BEGIN
                CAST(NULL AS nvarchar(30)) AS ReturnReason, Quantity, UnitListPrice, DiscountPct, GrossSales, DiscountAmount,
                CAST(0 AS decimal(14,2)) AS ReturnAmount, GrossSales - DiscountAmount AS NetRevenue, UnitCost,
                CAST(ROUND(Quantity * UnitCost, 2) AS decimal(14,2)) AS Cogs, IsCostCarriedForward,
-               CAST(0 AS bit) AS IsQuantityCapped, CAST(IIF(InvoiceDate < OrderDate, 1, 0) AS bit) AS IsInvoiceBeforeOrder
+               CAST(0 AS bit) AS IsQuantityCapped, CAST(IIF(InvoiceDate < OrderDate, 1, 0) AS bit) AS IsInvoiceBeforeOrder,
+               CAST(IIF(CampaignCode IS NULL AND DiscountPct < 100, 1, 0) AS bit) AS IsPolicyChecked,
+               CAST(IIF(CampaignCode IS NULL AND DiscountPct < 100 AND DiscountPct > MaxContractPct,
+                        ROUND(GrossSales * (DiscountPct - MaxContractPct) / 100, 2), 0) AS decimal(14,2)) AS DiscountAbovePolicy,
+               PromotionPeriod
         INTO #Sales
         FROM #Line
         WHERE InvoiceId IS NOT NULL
@@ -197,7 +211,7 @@ BEGIN
                r.Reason, -r.ReturnedQuantity, r.UnitListPrice, r.DiscountPct, 0, 0, v.ReturnAmount, -v.ReturnAmount, r.UnitCost,
                IIF(r.IsRestockable = 1, -CAST(ROUND(r.ReturnedQuantity * r.UnitCost, 2) AS decimal(14,2)), 0),
                r.IsCostCarriedForward, CAST(IIF(r.ReturnedQuantity < r.Quantity, 1, 0) AS bit),
-               CAST(IIF(r.InvoiceDate < r.OrderDate, 1, 0) AS bit)
+               CAST(IIF(r.InvoiceDate < r.OrderDate, 1, 0) AS bit), CAST(0 AS bit), 0, r.PromotionPeriod
         FROM returned AS r
         CROSS APPLY (SELECT CAST(r.ReturnedQuantity * r.UnitListPrice AS decimal(14,2)) AS GrossReturned) AS g
         CROSS APPLY (SELECT CAST(g.GrossReturned - ROUND(g.GrossReturned * r.DiscountPct / 100, 2) AS decimal(14,2)) AS ReturnAmount) AS v;
@@ -216,12 +230,14 @@ BEGIN
                 SELECT s.LineType, s.OrderId, s.OrderLineNumber, s.InvoiceId, s.PostingDate, s.OriginalInvoiceDate, s.OrderDate,
                        s.CustomerKey, s.ProductKey, s.ChannelCode, s.RegionCode, s.CategoryCode, s.CampaignCode, s.ReturnReason,
                        s.Quantity, s.UnitListPrice, s.DiscountPct, s.GrossSales, s.DiscountAmount, s.ReturnAmount, s.NetRevenue,
-                       s.UnitCost, s.Cogs, s.IsCostCarriedForward, s.IsQuantityCapped, s.IsInvoiceBeforeOrder
+                       s.UnitCost, s.Cogs, s.IsCostCarriedForward, s.IsQuantityCapped, s.IsInvoiceBeforeOrder,
+                       s.IsPolicyChecked, s.DiscountAbovePolicy, s.PromotionPeriod
                 EXCEPT
                 SELECT t.LineType, t.OrderId, t.OrderLineNumber, t.InvoiceId, t.PostingDate, t.OriginalInvoiceDate, t.OrderDate,
                        t.CustomerKey, t.ProductKey, t.ChannelCode, t.RegionCode, t.CategoryCode, t.CampaignCode, t.ReturnReason,
                        t.Quantity, t.UnitListPrice, t.DiscountPct, t.GrossSales, t.DiscountAmount, t.ReturnAmount, t.NetRevenue,
-                       t.UnitCost, t.Cogs, t.IsCostCarriedForward, t.IsQuantityCapped, t.IsInvoiceBeforeOrder) THEN
+                       t.UnitCost, t.Cogs, t.IsCostCarriedForward, t.IsQuantityCapped, t.IsInvoiceBeforeOrder,
+                       t.IsPolicyChecked, t.DiscountAbovePolicy, t.PromotionPeriod) THEN
             UPDATE SET LineType = s.LineType, OrderId = s.OrderId, OrderLineNumber = s.OrderLineNumber, InvoiceId = s.InvoiceId,
                        PostingDate = s.PostingDate, OriginalInvoiceDate = s.OriginalInvoiceDate, OrderDate = s.OrderDate,
                        CustomerKey = s.CustomerKey, ProductKey = s.ProductKey, ChannelCode = s.ChannelCode,
@@ -230,17 +246,19 @@ BEGIN
                        DiscountPct = s.DiscountPct, GrossSales = s.GrossSales, DiscountAmount = s.DiscountAmount,
                        ReturnAmount = s.ReturnAmount, NetRevenue = s.NetRevenue, UnitCost = s.UnitCost, Cogs = s.Cogs,
                        IsCostCarriedForward = s.IsCostCarriedForward, IsQuantityCapped = s.IsQuantityCapped,
-                       IsInvoiceBeforeOrder = s.IsInvoiceBeforeOrder
+                       IsInvoiceBeforeOrder = s.IsInvoiceBeforeOrder, IsPolicyChecked = s.IsPolicyChecked,
+                       DiscountAbovePolicy = s.DiscountAbovePolicy, PromotionPeriod = s.PromotionPeriod
         WHEN NOT MATCHED BY TARGET THEN
             INSERT (DocumentId, DocumentLine, LineType, OrderId, OrderLineNumber, InvoiceId, PostingDate, OriginalInvoiceDate,
                     OrderDate, CustomerKey, ProductKey, ChannelCode, RegionCode, CategoryCode, CampaignCode, ReturnReason,
                     Quantity, UnitListPrice, DiscountPct, GrossSales, DiscountAmount, ReturnAmount, NetRevenue, UnitCost, Cogs,
-                    IsCostCarriedForward, IsQuantityCapped, IsInvoiceBeforeOrder)
+                    IsCostCarriedForward, IsQuantityCapped, IsInvoiceBeforeOrder, IsPolicyChecked, DiscountAbovePolicy,
+                    PromotionPeriod)
             VALUES (s.DocumentId, s.DocumentLine, s.LineType, s.OrderId, s.OrderLineNumber, s.InvoiceId, s.PostingDate,
                     s.OriginalInvoiceDate, s.OrderDate, s.CustomerKey, s.ProductKey, s.ChannelCode, s.RegionCode,
                     s.CategoryCode, s.CampaignCode, s.ReturnReason, s.Quantity, s.UnitListPrice, s.DiscountPct, s.GrossSales,
                     s.DiscountAmount, s.ReturnAmount, s.NetRevenue, s.UnitCost, s.Cogs, s.IsCostCarriedForward,
-                    s.IsQuantityCapped, s.IsInvoiceBeforeOrder)
+                    s.IsQuantityCapped, s.IsInvoiceBeforeOrder, s.IsPolicyChecked, s.DiscountAbovePolicy, s.PromotionPeriod)
         WHEN NOT MATCHED BY SOURCE THEN
             DELETE
         OUTPUT $action INTO @SalesAction (Action);

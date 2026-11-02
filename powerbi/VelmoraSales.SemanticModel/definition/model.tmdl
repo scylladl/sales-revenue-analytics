@@ -25,7 +25,7 @@ queryGroup Support
 
 annotation __PBI_TimeIntelligenceEnabled = 0
 
-annotation PBI_QueryOrder = ["Server","Database","Budget File","Budget Sheets","Date","Channel","Region","Category","Customer","Product","Sales","Order Line","Data Quality Check","Processing Status","Budget","Budget Workbook Total"]
+annotation PBI_QueryOrder = ["Server","Database","Budget File","Budget Sheets","Date","Channel","Region","Category","Customer","Product","Sales","Order Line","Data Quality Check","Processing Status","Budget","Budget Workbook Total","Margin Bridge Step"]
 
 ref table Date
 ref table Channel
@@ -39,4 +39,5 @@ ref table 'Data Quality Check'
 ref table 'Processing Status'
 ref table Budget
 ref table 'Budget Workbook Total'
+ref table 'Margin Bridge Step'
 ref table _Measures

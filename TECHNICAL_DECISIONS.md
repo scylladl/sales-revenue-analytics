@@ -73,3 +73,34 @@ script:
 `LineNo` is a T-SQL keyword, so the line columns are `LineNumber` and `CreditLineNumber` in the generator and
 the database. `powerbi/validate_model.ps1` rejects DAX variables named with reserved words (`Before`, `Top` and
 similar), which the TMDL parser accepts but break the measure when the model loads.
+
+## D-10 Policy and promotion flags computed in the load, from reference tables
+
+The discount policy check (CR-01) and the promotion period (CR-03) are computed by `etl.usp_LoadSales` and stored
+on each sales row, so the measures only add and divide. The rule needs the customer's segment, the policy table
+and the order's campaign; doing it in DAX would mean a row-by-row lookup over 500,000 rows at query time. The
+promotion calendar became a reference table (`ref.Promotion`) because the ERP stamps a campaign code on the orders
+but not the category the promotion funds. Cost: reference tables have no timestamps, so a policy or calendar change
+needs a full reload.
+
+## D-11 Margin bridge in DAX, checked against SQL
+
+The bridge (CR-02) follows the report filters: by channel, region or category it explains that slice's margin,
+which a stored table of company-level contributions could not do. It is one measure over a six-row step table,
+iterating product × channel cells of the selected year and the previous one. `validation/validate_kpis.ps1`
+compares every step for 2024 and 2025 with `analysis/margin_bridge.sql`, written independently in SQL.
+`Cells` turned out to be a reserved word in DAX: the first version failed after loading and the variable was
+renamed; `powerbi/validate_model.ps1` now rejects it offline.
+
+## D-12 A design of its own ("Velmora Roast")
+
+The first build reused the layout of the previous portfolio project (default theme, page buttons along the top).
+The report now has its own identity: an espresso navigation rail on the left with the brand and one button per
+page, a cream canvas, caramel for actual values and slate blue for the comparison series (budget, prior year),
+terracotta for negatives. A warm beige was tried first as the comparison colour and rejected: next to caramel it
+fails the normal-vision and colour-blind separation checks of the dataviz palette validator. The six data colours
+pass all its checks. The rail uses buttons because `pbir` cannot make the page navigator vertical; each button
+targets the page id, since Power BI ignores display names in navigation actions. Formatting goes in the theme
+where it renders (colours, fonts, solid bars, no area shading, no title or border on buttons); the fill and text
+of buttons and shapes are set on each visual, because theme defaults did not reach them in Power BI Desktop. The
+report build takes about ten minutes as a result.

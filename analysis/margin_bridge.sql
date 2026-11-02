@@ -10,14 +10,16 @@
       discount  discount rate change
       new/discontinued products (cells sold in only one of the two years)
       returns   change of the margin lost to returns (revenue reversed, coffee cost not reversed)
-    Results in percentage points; the parts add up to the total change.
+    Results in percentage points; the parts add up to the total change. Amounts are converted to float: decimal
+    division reduces the scale and would shift the parts by a few thousandths of a point.
 */
 DECLARE @FromYear int = 2023, @ToYear int = 2025;
 
 WITH cell AS (
     SELECT YEAR(PostingDate) AS [Year], ProductKey, ChannelCode,
-           SUM(Quantity) AS Units, SUM(GrossSales) AS Gross, SUM(DiscountAmount) AS Discounts,
-           SUM(GrossSales - DiscountAmount) AS Net, SUM(Cogs) AS Cogs
+           CAST(SUM(Quantity) AS float) AS Units, CAST(SUM(GrossSales) AS float) AS Gross,
+           CAST(SUM(DiscountAmount) AS float) AS Discounts, CAST(SUM(GrossSales - DiscountAmount) AS float) AS Net,
+           CAST(SUM(Cogs) AS float) AS Cogs
     FROM dw.FactSales
     WHERE LineType = 'Invoice' AND YEAR(PostingDate) IN (@FromYear, @ToYear)
     GROUP BY YEAR(PostingDate), ProductKey, ChannelCode
@@ -45,7 +47,7 @@ total AS (
     GROUP BY [Year]
 ),
 after_returns AS (
-    SELECT YEAR(PostingDate) AS [Year], (SUM(NetRevenue) - SUM(Cogs)) / SUM(NetRevenue) AS GrossMargin
+    SELECT YEAR(PostingDate) AS [Year], CAST(SUM(NetRevenue) - SUM(Cogs) AS float) / SUM(NetRevenue) AS GrossMargin
     FROM dw.FactSales
     WHERE YEAR(PostingDate) IN (@FromYear, @ToYear)
     GROUP BY YEAR(PostingDate)
@@ -58,7 +60,7 @@ parts AS (
            SUM(ShareA * MarginA) AS CommonMarginA
     FROM weighted
 )
-SELECT Part, CAST(Points * 100 AS decimal(6,2)) AS Pp
+SELECT Part, ROUND(Points * 100, 4) AS Pp
 FROM (
     SELECT 1 AS Ord, 'Gross margin ' + CAST(@FromYear AS varchar(4)) AS Part, (SELECT GrossMargin FROM after_returns WHERE [Year] = @FromYear) AS Points
     UNION ALL SELECT 2, 'Mix (product x channel)', Mix FROM parts

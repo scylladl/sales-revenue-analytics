@@ -93,12 +93,13 @@ TABLES = {
         col("Posting Date", "PostingDate", D, hidden=True, fmt=DATE),
         col("Original Invoice Date", "OriginalInvoiceDate", D, hidden=True, fmt=DATE,
             desc="Invoice date of the sale; on return rows it attributes the return to the original sale (inactive relationship)."),
+        col("Order Date", "OrderDate", D, hidden=True, fmt=DATE, desc="Date the order was placed; counts promotion days (CR-03)."),
         col("Customer Key", "CustomerKey", I, hidden=True),
         col("Product Key", "ProductKey", I, hidden=True),
         col("Channel Code", "ChannelCode", S, hidden=True),
         col("Region Code", "RegionCode", S, hidden=True),
         col("Category Code", "CategoryCode", S, hidden=True),
-        col("Campaign", "CampaignCode", S, desc="E-commerce campaign (Black Friday, Christmas, summer) active on the order."),
+        col("Campaign", "CampaignCode", S, desc="Campaign on the order: e-commerce campaigns (Black Friday, Christmas, summer) and retail promotions."),
         col("Return Reason", "ReturnReason", S),
         col("Quantity", "Quantity", I, hidden=True),
         col("Discount %", "DiscountPct", M, hidden=True, fmt="0.0"),
@@ -111,9 +112,15 @@ TABLES = {
             desc="No standard cost for the invoice month; the latest earlier cost was used (check SRC-02)."),
         col("Is Quantity Capped", "IsQuantityCapped", B, desc="Return above the invoiced quantity, capped (check SRC-03)."),
         col("Is Invoice Before Order", "IsInvoiceBeforeOrder", B, desc="Invoice dated before its order; date kept (check SRC-04)."),
+        col("Is Policy Checked", "IsPolicyChecked", B, hidden=True,
+            desc="Invoice line checked against the contract discount policy: no campaign on the order, not a free sample (CR-01)."),
+        col("Discount Above Policy", "DiscountAbovePolicy", M, hidden=True, fmt=MONEY,
+            desc="Gross sales x (line discount % - contract maximum % of the customer's segment), on checked lines (CR-01)."),
+        col("Promotion Period", "PromotionPeriod", S,
+            desc="Promotion: ordered inside a promotion window for the line's channel and category. Rest of month: the other days of that month. Blank elsewhere (CR-03)."),
     ], {"CustomerKey": "Int64.Type", "ProductKey": "Int64.Type", "Quantity": "Int64.Type", "DiscountPct": "type number",
         "GrossSales": "Currency.Type", "DiscountAmount": "Currency.Type", "ReturnAmount": "Currency.Type",
-        "NetRevenue": "Currency.Type", "Cogs": "Currency.Type"}),
+        "NetRevenue": "Currency.Type", "Cogs": "Currency.Type", "DiscountAbovePolicy": "Currency.Type"}),
     "Order Line": ("vw_OrderLine", "Facts",
                    "One row per order line whatever its status, by order date: orders taken, cancellations and open orders (rule R3).", [
         col("Order Id", "OrderId", S, hidden=True),
@@ -195,7 +202,17 @@ in
     Kept
 """
 
-BUDGET_TABLES = {
+MARGIN_BRIDGE_STEPS = """
+let
+    Source = #table ( type table [Step = text, StepOrder = Int64.Type], {
+        {"Mix", 1}, {"Standard cost", 2}, {"List price", 3}, {"Discount rate", 4},
+        {"New and discontinued products", 5}, {"Returns", 6} } )
+in
+    Source
+"""
+
+# Tables whose source is a Power Query expression rather than an rpt view
+QUERY_TABLES = {
     "Budget": ("Facts", "Monthly budget by channel, region and category, from the finance workbook (rule R7). Title rows and the "
                "workbook Total row are skipped; region codes are upper-cased and category names mapped to codes.", BUDGET, [
         col("Month Start", "MonthStart", D, hidden=True, fmt=DATE),
@@ -211,6 +228,10 @@ BUDGET_TABLES = {
         col("Measure", "Measure", S),
         col("Amount", "Amount", M, fmt=MONEY),
     ]),
+    "Margin Bridge Step": ("Support", "Axis of the gross margin bridge (CR-02): the parts of the change against the previous year.", MARGIN_BRIDGE_STEPS, [
+        col("Step", "Step", S, sort="Step Order"),
+        col("Step Order", "StepOrder", I, hidden=True),
+    ]),
 }
 
 # Measures: (name, folder, format, description, DAX)
@@ -221,8 +242,9 @@ def measure(name, folder, fmt, desc, expr):
     MEASURES.append((name, folder, fmt, desc, expr))
 
 
-F_SALES, F_PROFIT, F_BUDGET, F_ORDERS, F_TIME, F_DQ, F_REPORT = (
-    "1. Sales", "2. Profitability", "3. Budget", "4. Orders", "5. Time Comparison", "6. Data Quality", "7. Report")
+F_SALES, F_PROFIT, F_BUDGET, F_ORDERS, F_TIME, F_LEVERS, F_DQ, F_REPORT = (
+    "1. Sales", "2. Profitability", "3. Budget", "4. Orders", "5. Time Comparison", "6. Profit Levers", "7. Data Quality",
+    "8. Report")
 EUR = "€ #,##0"
 PCT = "0.0%"
 PP = '+0.0" pp";-0.0" pp";0.0" pp"'
@@ -317,6 +339,92 @@ VAR CurrentValue = [{kpi}]
 VAR PriorValue = [{kpi} PM]
 RETURN
     IF ( NOT ISBLANK ( CurrentValue ) && NOT ISBLANK ( PriorValue ), DIVIDE ( CurrentValue - PriorValue, PriorValue ) )""")
+
+measure("Discount Above Policy", F_LEVERS, EUR,
+        "Discount granted above the contract maximum of the customer's segment, on invoice lines of orders without a campaign (free samples excluded). CR-01.",
+        "SUM ( 'Sales'[Discount Above Policy] )")
+measure("Lines Above Policy %", F_LEVERS, PCT, "Checked invoice lines with a discount above the contract maximum, as a share of all checked lines. CR-01.", """
+VAR AboveLines = CALCULATE ( COUNTROWS ( 'Sales' ), 'Sales'[Discount Above Policy] > 0 ) + 0   -- 0 %, not blank, when no line is above
+VAR CheckedLines = CALCULATE ( COUNTROWS ( 'Sales' ), 'Sales'[Is Policy Checked] = TRUE () )
+RETURN
+    DIVIDE ( AboveLines, CheckedLines )""")
+measure("Gross Profit per Promotion Day", F_LEVERS, EUR,
+        "Gross profit of lines ordered inside a promotion window, divided by the days with such orders. CR-03.", """
+DIVIDE (
+    CALCULATE ( [Gross Profit], 'Sales'[Promotion Period] = "Promotion" ),
+    CALCULATE ( DISTINCTCOUNT ( 'Sales'[Order Date] ), 'Sales'[Promotion Period] = "Promotion" )
+)""")
+measure("Gross Profit per Ordinary Day", F_LEVERS, EUR,
+        "Same for the other days of the promotion months, same channel and category: the comparison base. CR-03.", """
+DIVIDE (
+    CALCULATE ( [Gross Profit], 'Sales'[Promotion Period] = "Rest of month" ),
+    CALCULATE ( DISTINCTCOUNT ( 'Sales'[Order Date] ), 'Sales'[Promotion Period] = "Rest of month" )
+)""")
+measure("Gross Profit per Order Day", F_LEVERS, EUR,
+        "Gross profit divided by the days with orders in context; with 'Sales'[Promotion Period] it compares promotion and ordinary days. CR-03.",
+        "DIVIDE ( [Gross Profit], DISTINCTCOUNT ( 'Sales'[Order Date] ) )")
+measure("Units per Order Day", F_LEVERS, "#,##0", "Units sold divided by the days with orders in context. CR-03.",
+        "DIVIDE ( [Units Sold], CALCULATE ( DISTINCTCOUNT ( 'Sales'[Order Date] ), KEEPFILTERS ( 'Sales'[Line Type] = \"Invoice\" ) ) )")
+measure("Promotion Profit Ratio %", F_LEVERS, PCT,
+        "Gross profit per promotion day as a share of gross profit per ordinary day; below 100 % a promotion day earns less than an ordinary day. CR-03.",
+        "DIVIDE ( [Gross Profit per Promotion Day], [Gross Profit per Ordinary Day] )")
+measure("Margin Bridge (pp)", F_LEVERS, "+0.00;-0.00;0.00",
+        "Change of gross margin % against the previous year, split by product x channel into mix, standard cost, list price, discount rate, new and discontinued products, and returns (CR-02; same method as analysis/margin_bridge.sql). With 'Margin Bridge Step'[Step] on a waterfall, the total is the change in percentage points.", """
+VAR StepNumber = SELECTEDVALUE ( 'Margin Bridge Step'[Step Order] )
+-- amounts converted to DOUBLE: Currency keeps four decimals and would round the small price and discount terms
+VAR BridgeCells =
+    FILTER (
+        ADDCOLUMNS (
+            SUMMARIZE ( 'Sales', 'Sales'[Product Key], 'Sales'[Channel Code] ),
+            "@UnitsB", CALCULATE ( SUM ( 'Sales'[Quantity] ), 'Sales'[Line Type] = "Invoice" ),
+            "@GrossB", CONVERT ( CALCULATE ( SUM ( 'Sales'[Gross Sales] ) ), DOUBLE ),
+            "@DiscB", CONVERT ( CALCULATE ( SUM ( 'Sales'[Discount Amount] ) ), DOUBLE ),
+            "@CogsB", CONVERT ( CALCULATE ( SUM ( 'Sales'[COGS] ), 'Sales'[Line Type] = "Invoice" ), DOUBLE ),
+            "@UnitsA", CALCULATE ( SUM ( 'Sales'[Quantity] ), 'Sales'[Line Type] = "Invoice", SAMEPERIODLASTYEAR ( 'Date'[Date] ) ),
+            "@GrossA", CONVERT ( CALCULATE ( SUM ( 'Sales'[Gross Sales] ), SAMEPERIODLASTYEAR ( 'Date'[Date] ) ), DOUBLE ),
+            "@DiscA", CONVERT ( CALCULATE ( SUM ( 'Sales'[Discount Amount] ), SAMEPERIODLASTYEAR ( 'Date'[Date] ) ), DOUBLE ),
+            "@CogsA", CONVERT ( CALCULATE ( SUM ( 'Sales'[COGS] ), 'Sales'[Line Type] = "Invoice", SAMEPERIODLASTYEAR ( 'Date'[Date] ) ), DOUBLE )
+        ),
+        [@GrossA] - [@DiscA] > 0 && [@GrossB] - [@DiscB] > 0
+    )
+VAR NetTotalA = SUMX ( BridgeCells, [@GrossA] - [@DiscA] )
+VAR NetTotalB = SUMX ( BridgeCells, [@GrossB] - [@DiscB] )
+VAR Detail =
+    ADDCOLUMNS (
+        BridgeCells,
+        "@ShareA", ( [@GrossA] - [@DiscA] ) / NetTotalA,
+        "@ShareB", ( [@GrossB] - [@DiscB] ) / NetTotalB,
+        "@MarginA", 1 - [@CogsA] / ( [@GrossA] - [@DiscA] ),
+        "@PriceA", ( [@GrossA] - [@DiscA] ) / [@UnitsA],
+        "@PriceB", ( [@GrossB] - [@DiscB] ) / [@UnitsB],
+        "@CostA", [@CogsA] / [@UnitsA],
+        "@CostB", [@CogsB] / [@UnitsB],
+        "@PriceAtOldDiscount", [@GrossB] / [@UnitsB] * ( 1 - [@DiscA] / [@GrossA] )
+    )
+VAR MixPart = SUMX ( Detail, ( [@ShareB] - [@ShareA] ) * [@MarginA] )
+VAR CostPart = SUMX ( Detail, [@ShareB] * ( [@CostA] - [@CostB] ) / [@PriceA] )
+VAR ListPart = SUMX ( Detail, [@ShareB] * [@CostB] * ( 1 / [@PriceA] - 1 / [@PriceAtOldDiscount] ) )
+VAR DiscountPart = SUMX ( Detail, [@ShareB] * [@CostB] * ( 1 / [@PriceAtOldDiscount] - 1 / [@PriceB] ) )
+VAR InvoiceMarginB = 1 - DIVIDE ( CALCULATE ( SUM ( 'Sales'[COGS] ), 'Sales'[Line Type] = "Invoice" ), [Net Sales Before Returns] )
+VAR InvoiceMarginA =
+    1 - DIVIDE (
+        CALCULATE ( SUM ( 'Sales'[COGS] ), 'Sales'[Line Type] = "Invoice", SAMEPERIODLASTYEAR ( 'Date'[Date] ) ),
+        CALCULATE ( [Net Sales Before Returns], SAMEPERIODLASTYEAR ( 'Date'[Date] ) )
+    )
+VAR MarginB = [Gross Margin %]
+VAR MarginA = [Gross Margin % PY]
+VAR StepValue =
+    SWITCH (
+        StepNumber,
+        1, MixPart,
+        2, CostPart,
+        3, ListPart,
+        4, DiscountPart,
+        5, ( InvoiceMarginB - InvoiceMarginA ) - ( MixPart + CostPart + ListPart + DiscountPart ),
+        6, ( MarginB - InvoiceMarginB ) - ( MarginA - InvoiceMarginA )
+    )
+RETURN
+    IF ( NOT ISBLANK ( MarginA ) && NOT ISBLANK ( MarginB ), StepValue * 100 )""")
 
 measure("Failed Checks", F_DQ, "#,##0", "Data quality checks that failed in the last run.",
         "CALCULATE ( COUNTROWS ( 'Data Quality Check' ), 'Data Quality Check'[Result] = \"Fail\" ) + 0")
@@ -460,7 +568,7 @@ def main():
     for name, (view, group, desc, columns, types) in TABLES.items():
         write(definition / "tables" / f"{name}.tmdl",
               table_tmdl(name, desc, columns, group, view_query(view, types), "Time" if name == "Date" else None))
-    for name, (group, desc, m_source, columns) in BUDGET_TABLES.items():
+    for name, (group, desc, m_source, columns) in QUERY_TABLES.items():
         write(definition / "tables" / f"{name}.tmdl", table_tmdl(name, desc, columns, group, m_source))
     write(definition / "tables" / "_Measures.tmdl", measures_tmdl())
 
@@ -486,7 +594,7 @@ def main():
         f"{T}annotation PBI_ResultType = Table",
     ]))
 
-    all_tables = list(TABLES) + list(BUDGET_TABLES) + ["_Measures"]
+    all_tables = list(TABLES) + list(QUERY_TABLES) + ["_Measures"]
     order = ["Server", "Database", "Budget File", "Budget Sheets"] + [t for t in all_tables if t != "_Measures"]
     write(definition / "model.tmdl", "\n".join([
         "model Model", f"{T}culture: en-US", f"{T}defaultPowerBIDataSourceVersion: powerBI_V3", f"{T}discourageImplicitMeasures",

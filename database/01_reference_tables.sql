@@ -38,6 +38,18 @@ CREATE TABLE ref.DiscountPolicy (
     CONSTRAINT PK_DiscountPolicy PRIMARY KEY (ChannelCode, Segment),
     CONSTRAINT FK_DiscountPolicy_Channel FOREIGN KEY (ChannelCode) REFERENCES ref.Channel (ChannelCode)
 );
+
+-- Marketing's calendar of funded promotions: which channel and category get the extra discount, and when.
+-- The ERP stamps the campaign code on the orders but not the category it funds.
+IF OBJECT_ID(N'ref.Promotion') IS NULL
+CREATE TABLE ref.Promotion (
+    CampaignCode      varchar(12)  NOT NULL CONSTRAINT PK_Promotion PRIMARY KEY,
+    ChannelCode       varchar(6)   NOT NULL CONSTRAINT FK_Promotion_Channel REFERENCES ref.Channel (ChannelCode),
+    CategoryCode      varchar(6)   NOT NULL CONSTRAINT FK_Promotion_Category REFERENCES ref.Category (CategoryCode),
+    StartDate         date         NOT NULL,
+    EndDate           date         NOT NULL,
+    ExtraDiscountPct  decimal(5,2) NOT NULL
+);
 GO
 
 MERGE ref.Channel AS t
@@ -72,4 +84,16 @@ USING (VALUES ('HORECA', 'Gold', 12.0), ('HORECA', 'Silver', 8.0), ('HORECA', 'B
    ON t.ChannelCode = s.ChannelCode AND t.Segment = s.Segment
 WHEN MATCHED THEN UPDATE SET MaxContractPct = s.MaxContractPct
 WHEN NOT MATCHED THEN INSERT VALUES (s.ChannelCode, s.Segment, s.MaxContractPct);
+
+-- Retail capsule promotions: days 1 to 10 of March, May, September and November, 25 points on top of the contract
+MERGE ref.Promotion AS t
+USING (SELECT CONCAT('PROMO', y.value, FORMAT(m.value, '00')), 'RETAIL', 'CAPS',
+              DATEFROMPARTS(y.value, m.value, 1), DATEFROMPARTS(y.value, m.value, 10), 25.0
+       FROM GENERATE_SERIES(2023, 2025) AS y
+       CROSS JOIN (VALUES (3), (5), (9), (11)) AS m (value))
+      AS s (CampaignCode, ChannelCode, CategoryCode, StartDate, EndDate, ExtraDiscountPct)
+   ON t.CampaignCode = s.CampaignCode
+WHEN MATCHED THEN UPDATE SET ChannelCode = s.ChannelCode, CategoryCode = s.CategoryCode, StartDate = s.StartDate,
+                             EndDate = s.EndDate, ExtraDiscountPct = s.ExtraDiscountPct
+WHEN NOT MATCHED THEN INSERT VALUES (s.CampaignCode, s.ChannelCode, s.CategoryCode, s.StartDate, s.EndDate, s.ExtraDiscountPct);
 GO

@@ -5,7 +5,8 @@
       DAX side:  the same KPIs evaluated in the semantic model of powerbi\VelmoraSales.pbip, which must be open in
                  Power BI Desktop with its data refreshed
     Both sides are computed by year, for all channels and for each channel. Amounts must match to the cent and
-    ratios to 0.0001. Also checks that the prepared budget equals the Total rows of the finance workbook.
+    ratios to 0.0001. Also checks that the prepared budget equals the Total rows of the finance workbook, and that
+    the Margin Bridge (pp) measure gives the same steps as analysis\margin_bridge.sql (to 0.0002 pp).
     Writes validation\kpi_comparison.csv and exits with an error when a KPI differs.
 
     Usage:  powershell -ExecutionPolicy Bypass -File validation\validate_kpis.ps1 [-Server localhost]
@@ -17,8 +18,9 @@ param(
 $ErrorActionPreference = "Stop"
 $invariant = [System.Globalization.CultureInfo]::InvariantCulture
 $kpis = "Gross Sales", "Discounts", "Returns", "Net Revenue", "COGS", "Gross Profit", "Gross Margin %", "Discount Rate %",
-        "Return Rate %", "Units Sold", "Invoiced Orders", "Average Order Value", "Orders", "Cancelled Orders"
-$ratios = "Gross Margin %", "Discount Rate %", "Return Rate %"
+        "Return Rate %", "Units Sold", "Invoiced Orders", "Average Order Value", "Orders", "Cancelled Orders",
+        "Discount Above Policy", "Lines Above Policy %", "Gross Profit per Promotion Day", "Gross Profit per Ordinary Day"
+$ratios = "Gross Margin %", "Discount Rate %", "Return Rate %", "Lines Above Policy %"
 
 # SQL side
 $sql = @{}
@@ -32,6 +34,22 @@ try {
     while ($reader.Read()) {
         $value = if ($reader.IsDBNull(3)) { $null } else { [double]$reader.GetValue(3) }
         $sql["$($reader.GetValue(0))|$($reader.GetValue(1))|$($reader.GetValue(2))"] = $value
+    }
+    $reader.Close()
+
+    # margin bridge steps, in the order of 'Margin Bridge Step'[Step Order]
+    $bridgeSql = Get-Content (Join-Path $PSScriptRoot "..\analysis\margin_bridge.sql") -Raw -Encoding UTF8
+    $bridge = @{}
+    foreach ($year in 2024, 2025) {
+        $command.CommandText = $bridgeSql -replace '@FromYear int = \d+, @ToYear int = \d+', "@FromYear int = $($year - 1), @ToYear int = $year"
+        $reader = $command.ExecuteReader()
+        $row = 0
+        while ($reader.Read()) {
+            $row++
+            # rows 2 to 7 are the parts; rows 1 and 8 the opening and closing margins
+            if ($row -ge 2 -and $row -le 7) { $bridge["$year|$($row - 1)"] = [double]$reader.GetValue(1) }
+        }
+        $reader.Close()
     }
 }
 finally {
@@ -102,6 +120,13 @@ $results += foreach ($row in $budget) {
     [pscustomobject]@{ Year = $row["Year"]; Channel = "ALL"; Kpi = "Budget Net Revenue vs workbook Total row";
                        Sql = [double]$row["Workbook"]; PowerBI = [double]$row["Prepared"];
                        Match = [math]::Abs([double]$row["Workbook"] - [double]$row["Prepared"]) -le 0.005 }
+}
+foreach ($row in Invoke-Dax "EVALUATE SUMMARIZECOLUMNS('Date'[Year], 'Margin Bridge Step'[Step Order], ""Pp"", [Margin Bridge (pp)])") {
+    $key = "$($row['Year'])|$($row['Step Order'])"
+    if (-not $bridge.ContainsKey($key)) { continue }
+    $results += [pscustomobject]@{ Year = $row["Year"]; Channel = "ALL"; Kpi = "Margin Bridge (pp) step $($row['Step Order'])";
+                                   Sql = $bridge[$key]; PowerBI = [double]$row["Pp"];
+                                   Match = [math]::Abs($bridge[$key] - [double]$row["Pp"]) -le 0.0002 }
 }
 $dax.Close()
 

@@ -65,6 +65,21 @@ exists only for one channel at a time.
 
 Changes are blank when either period has no value, so the first year of data shows no YoY.
 
+## Profit levers (version 1.1)
+
+| Measure | Rule | Definition |
+|---|---|---|
+| Discount Above Policy | R9 | Gross sales × (line discount − contract maximum of the customer's channel and segment), on invoice lines of orders without a campaign; free samples excluded |
+| Lines Above Policy % | R9 | Checked lines with a discount above the maximum ÷ checked lines |
+| Margin Bridge (pp) | R10 | With `'Margin Bridge Step'[Step]`: mix, standard cost, list price, discount rate, new and discontinued products and returns, in percentage points; on a waterfall the total is the change of gross margin % against the previous year. Computed by product × channel on invoice lines, so it follows the channel, region and category filters. |
+| Gross Profit per Promotion Day | R11 | Gross profit of lines ordered inside a promotion window ÷ order days inside the windows. Posting date filters the rows; order date counts the days. |
+| Gross Profit per Ordinary Day | R11 | Same for the other days of the promotion months, same channel and category |
+| Promotion Profit Ratio % | R11 | Gross Profit per Promotion Day ÷ Gross Profit per Ordinary Day |
+| Gross Profit per Order Day, Units per Order Day | R11 | Gross profit, or invoiced units, ÷ days with orders in context; with `'Sales'[Promotion Period]` they compare promotion and ordinary days |
+
+Reference tables carry no timestamps: after a change to the discount policy or the promotion calendar, run a full
+reload (`database/refresh.ps1 -FullReload`).
+
 ## Data quality and report
 
 | Measure | Definition |
